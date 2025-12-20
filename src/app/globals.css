@@ -1,0 +1,451 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Dark theme (default) */
+:root,
+.dark {
+  --color-base: #0b0b0c;
+  --color-base-muted: #141416;
+  --color-copy: #f5f5f5;
+  --color-copy-muted: #c8cad0;  /* Improved contrast - was #a5a7ae */
+  --color-accent: #f0473a;
+  --color-card: #1c1d20;
+  --color-border: #2a2b30;
+  --font-display: "Bebas Neue", "Impact", sans-serif;
+  --font-body: "Inter", "Roboto", sans-serif;
+}
+
+/* Light theme */
+.light {
+  --color-base: #f8f9fa;
+  --color-base-muted: #e9ecef;
+  --color-copy: #1a1a1a;
+  --color-copy-muted: #6b7280;
+  --color-accent: #dc2626;
+  --color-card: #ffffff;
+  --color-border: #e5e7eb;
+}
+
+/* Dark mode body styles */
+.dark body,
+body:not(.light body) {
+  @apply bg-[#0b0b0c] text-[#f5f5f5];
+  font-family: var(--font-body);
+  background-image: radial-gradient(
+      circle at top,
+      rgba(255, 255, 255, 0.02),
+      transparent
+    ),
+    radial-gradient(circle at 20% 20%, rgba(255, 255, 255, 0.025), transparent),
+    linear-gradient(180deg, rgba(12, 12, 15, 0.95), rgba(6, 6, 8, 1));
+  min-height: 100vh;
+}
+
+/* Light mode body styles */
+.light body {
+  @apply bg-gray-50 text-gray-900;
+  font-family: var(--font-body);
+  background-image: none;
+  background-color: #f9fafb;
+  min-height: 100vh;
+}
+
+.dark body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background-image: url("data:image/svg+xml,%3Csvg width='120' height='120' viewBox='0 0 120 120' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-opacity='0.25'%3E%3Cpath stroke='%23222228' stroke-width='0.5' d='M0 0h120v120H0z'/%3E%3C/g%3E%3C/svg%3E");
+  opacity: 0.2;
+  z-index: -1;
+}
+
+.light body::before {
+  display: none;
+}
+
+.noise-surface {
+  background: #101015;
+  background-image: linear-gradient(
+      0deg,
+      rgba(255, 255, 255, 0.02),
+      rgba(0, 0, 0, 0.35)
+    ),
+    repeating-linear-gradient(
+      45deg,
+      rgba(255, 255, 255, 0.015) 0px,
+      rgba(255, 255, 255, 0.015) 2px,
+      rgba(0, 0, 0, 0.02) 2px,
+      rgba(0, 0, 0, 0.02) 4px
+    );
+}
+
+.bordered-card {
+  @apply border border-[#2a2b30] bg-[#1c1d20] shadow-card rounded-lg;
+}
+
+.section-grid {
+  @apply grid gap-6 md:grid-cols-2 lg:grid-cols-3;
+}
+
+/* Light mode component overrides */
+.light .bordered-card {
+  @apply border-gray-200 bg-white shadow-md;
+}
+
+.light header {
+  @apply border-gray-200 bg-white/95;
+}
+
+/* Theme-aware utilities */
+.theme-bg {
+  @apply bg-[var(--color-base)];
+}
+
+.theme-card {
+  @apply bg-[var(--color-card)] border-[var(--color-border)];
+}
+
+.theme-text {
+  @apply text-[var(--color-copy)];
+}
+
+.theme-text-muted {
+  @apply text-[var(--color-copy-muted)];
+}
+
+/* ===== ACCESSIBILITY: Improved text contrast for dark mode ===== */
+/* Override Tailwind gray colors for better readability on dark backgrounds */
+.dark .text-gray-400,
+body:not(.light) .text-gray-400 {
+  color: #b8bcc5 !important;  /* Lighter than default #9ca3af */
+}
+
+.dark .text-gray-500,
+body:not(.light) .text-gray-500 {
+  color: #a3a8b2 !important;  /* Much lighter than default #6b7280 */
+}
+
+.dark .text-gray-600,
+body:not(.light) .text-gray-600 {
+  color: #9298a4 !important;  /* Much lighter than default #4b5563 */
+}
+
+/* Placeholder text improvements */
+.dark input::placeholder,
+.dark textarea::placeholder,
+body:not(.light) input::placeholder,
+body:not(.light) textarea::placeholder {
+  color: #9298a4;
+}
+
+/* Border color improvements for visibility */
+.dark .border-gray-700,
+body:not(.light) .border-gray-700 {
+  border-color: #3a3d45;
+}
+
+.dark .border-gray-800,
+body:not(.light) .border-gray-800 {
+  border-color: #2e3138;
+}
+
+/* Background adjustments for card visibility */
+.dark .bg-gray-800,
+body:not(.light) .bg-gray-800 {
+  background-color: #1e2027;
+}
+
+.dark .bg-gray-800\/50,
+body:not(.light) .bg-gray-800\/50 {
+  background-color: rgba(30, 32, 39, 0.5);
+}
+
+.dark .bg-gray-900,
+body:not(.light) .bg-gray-900 {
+  background-color: #15171c;
+}
+
+.dark .bg-gray-900\/50,
+body:not(.light) .bg-gray-900\/50 {
+  background-color: rgba(21, 23, 28, 0.5);
+}
+
+/* Extra contrast for very small text */
+.dark .text-xs.text-gray-400,
+.dark .text-xs.text-gray-500,
+.dark .text-xs.text-gray-600,
+body:not(.light) .text-xs.text-gray-400,
+body:not(.light) .text-xs.text-gray-500,
+body:not(.light) .text-xs.text-gray-600 {
+  color: #b8bcc5 !important;
+}
+
+/* Ensure label text is readable */
+.dark label,
+body:not(.light) label {
+  color: #c8cad0;
+}
+
+/* Better contrast for disabled states */
+.dark button:disabled,
+.dark input:disabled,
+body:not(.light) button:disabled,
+body:not(.light) input:disabled {
+  opacity: 0.6;
+}
+
+/* Improve link/action text visibility */
+.dark .text-blue-400,
+body:not(.light) .text-blue-400 {
+  color: #60a5fa !important;
+}
+
+.dark .text-green-400,
+body:not(.light) .text-green-400 {
+  color: #4ade80 !important;
+}
+
+.dark .text-red-400,
+body:not(.light) .text-red-400 {
+  color: #f87171 !important;
+}
+
+/* ===== LIGHT MODE: Comprehensive color overrides ===== */
+/* Fix text colors that are invisible on light backgrounds */
+
+/* White text → Dark text in light mode */
+.light .text-white {
+  color: #1a1a1a !important;
+}
+
+/* Gray text adjustments for light mode */
+.light .text-gray-400 {
+  color: #6b7280 !important;
+}
+
+.light .text-gray-500 {
+  color: #4b5563 !important;
+}
+
+.light .text-gray-600 {
+  color: #374151 !important;
+}
+
+/* Copy colors for light mode */
+.light .text-copy {
+  color: #1a1a1a !important;
+}
+
+.light .text-copy-muted {
+  color: #4b5563 !important;
+}
+
+/* Background adjustments for light mode */
+.light .bg-gray-800 {
+  background-color: #f3f4f6 !important;
+}
+
+.light .bg-gray-800\/50 {
+  background-color: rgba(243, 244, 246, 0.5) !important;
+}
+
+.light .bg-gray-900 {
+  background-color: #e5e7eb !important;
+}
+
+.light .bg-gray-900\/50 {
+  background-color: rgba(229, 231, 235, 0.5) !important;
+}
+
+.light .bg-gray-700 {
+  background-color: #e5e7eb !important;
+}
+
+/* Card backgrounds */
+.light .bg-\[\#121216\],
+.light .bg-\[\#151518\],
+.light .bg-\[\#1c1d20\],
+.light .bg-\[\#0f0f12\] {
+  background-color: #ffffff !important;
+}
+
+.light .bg-base,
+.light .bg-base-muted {
+  background-color: #f8f9fa !important;
+}
+
+/* Border colors for light mode */
+.light .border-gray-700,
+.light .border-gray-800 {
+  border-color: #e5e7eb !important;
+}
+
+.light .border-\[\#2a2b30\] {
+  border-color: #e5e7eb !important;
+}
+
+/* Input and form elements */
+.light input,
+.light textarea,
+.light select {
+  background-color: #ffffff !important;
+  border-color: #d1d5db !important;
+  color: #1a1a1a !important;
+}
+
+.light input::placeholder,
+.light textarea::placeholder {
+  color: #9ca3af !important;
+}
+
+.light input:focus,
+.light textarea:focus,
+.light select:focus {
+  border-color: #dc2626 !important;
+}
+
+/* Labels */
+.light label {
+  color: #374151 !important;
+}
+
+/* Headings and titles */
+.light h1,
+.light h2,
+.light h3,
+.light h4,
+.light h5,
+.light h6 {
+  color: #1a1a1a;
+}
+
+/* Accent colors - slightly darker for light mode */
+.light .text-accent {
+  color: #dc2626 !important;
+}
+
+.light .bg-accent {
+  background-color: #dc2626 !important;
+}
+
+/* Status badge backgrounds */
+.light .bg-blue-900\/30,
+.light .bg-blue-900\/50 {
+  background-color: rgba(59, 130, 246, 0.1) !important;
+}
+
+.light .bg-green-900\/30,
+.light .bg-green-900\/50 {
+  background-color: rgba(34, 197, 94, 0.1) !important;
+}
+
+.light .bg-purple-900\/30,
+.light .bg-purple-900\/50 {
+  background-color: rgba(168, 85, 247, 0.1) !important;
+}
+
+.light .bg-orange-900\/30,
+.light .bg-orange-900\/50 {
+  background-color: rgba(249, 115, 22, 0.1) !important;
+}
+
+.light .bg-red-900\/20 {
+  background-color: rgba(239, 68, 68, 0.1) !important;
+}
+
+/* Status text colors for light mode */
+.light .text-blue-400 {
+  color: #2563eb !important;
+}
+
+.light .text-green-400 {
+  color: #16a34a !important;
+}
+
+.light .text-purple-400 {
+  color: #9333ea !important;
+}
+
+.light .text-orange-400 {
+  color: #ea580c !important;
+}
+
+.light .text-red-300,
+.light .text-red-400 {
+  color: #dc2626 !important;
+}
+
+/* Border adjustments for status colors */
+.light .border-blue-800 {
+  border-color: #93c5fd !important;
+}
+
+.light .border-red-800 {
+  border-color: #fca5a5 !important;
+}
+
+/* Button adjustments */
+.light button.bg-gray-800 {
+  background-color: #e5e7eb !important;
+  color: #1a1a1a !important;
+}
+
+.light button.bg-gray-800:hover {
+  background-color: #d1d5db !important;
+}
+
+/* Table and list styling */
+.light table thead {
+  background-color: #f3f4f6 !important;
+}
+
+.light table tbody tr:hover {
+  background-color: #f9fafb !important;
+}
+
+.light .divide-gray-800 > :not([hidden]) ~ :not([hidden]) {
+  border-color: #e5e7eb !important;
+}
+
+/* Skeleton loading states */
+.light .animate-pulse {
+  background-color: #e5e7eb;
+}
+
+/* Progress bars */
+.light .bg-gray-700 {
+  background-color: #e5e7eb !important;
+}
+
+/* Hover states */
+.light .hover\:bg-gray-700:hover {
+  background-color: #e5e7eb !important;
+}
+
+.light .hover\:bg-gray-800\/50:hover {
+  background-color: rgba(243, 244, 246, 0.5) !important;
+}
+
+/* Link hover states */
+.light a:hover {
+  color: #dc2626;
+}
+
+/* Disabled states */
+.light button:disabled,
+.light input:disabled {
+  opacity: 0.5;
+  background-color: #f3f4f6 !important;
+}
+
+/* Focus rings */
+.light .focus\:ring-accent:focus {
+  --tw-ring-color: #dc2626;
+}
+
+/* Shadow adjustments */
+.light .shadow-card {
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}

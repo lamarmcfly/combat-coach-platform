@@ -1,0 +1,1148 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ATHLETE
+  COACH
+  ADMIN
+}
+
+enum CourseLevel {
+  BEGINNER
+  INTERMEDIATE
+  ADVANCED
+  ALL_LEVELS
+}
+
+enum PurchaseStatus {
+  PENDING
+  ACTIVE
+  REFUNDED
+  CANCELED
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  CANCELED
+}
+
+enum PayoutStatus {
+  PENDING
+  IN_TRANSIT
+  PAID
+  FAILED
+}
+
+enum SubscriptionTier {
+  FREE
+  BASIC
+  PRO
+  ELITE
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  PAST_DUE
+  CANCELED
+  INCOMPLETE
+  INCOMPLETE_EXPIRED
+  TRIALING
+  UNPAID
+}
+
+enum CreditType {
+  MONTHLY
+  PACK
+}
+
+model User {
+  id               String           @id @default(cuid())
+  email            String           @unique
+  passwordHash     String
+  firstName        String?
+  lastName         String?
+  role             Role             @default(ATHLETE)
+  subscriptionTier SubscriptionTier @default(FREE)
+  stripeCustomerId String?          @unique
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  coachProfile        CoachProfile?
+  coursePurchases     CoursePurchase[]
+  liveSessionBookings LiveSessionBooking[]
+  subscription        Subscription?
+  creditTransactions  CreditTransaction[]
+  officeHoursBookings OfficeHoursBooking[]
+  trainingSchedules   TrainingSchedule[]
+  adherenceStats      AdherenceStats[]
+  coachingRequests    CoachingRequest[]    @relation("StudentRequests")
+  goals               Goal[]
+  trainingLineage     TrainingLineage[]
+  beltPromotions      BeltPromotion[]
+  weightEntries       WeightEntry[]
+  weightGoal          WeightGoal?
+  fights              Fight[]
+  sparringPreference  SparringPreference?
+  sparringRequestsSent     SparringRequest[] @relation("SparringRequester")
+  sparringRequestsReceived SparringRequest[] @relation("SparringPartner")
+  connectedCalendars  ConnectedCalendar[]
+  calendarSubscription CalendarSubscription?
+  notificationPreferences NotificationPreferences?
+}
+
+model CoachProfile {
+  id                String      @id @default(cuid())
+  userId            String      @unique
+  displayName       String
+  tagline           String?
+  gymName           String?
+  gymLocation       String?
+  shortBio          String?
+  longBio           String?
+  avatarUrl         String?
+  highlightVideoUrl String?
+  yearsCoaching     Int?
+  location          String?
+  socialLinks       Json?
+  status            CoachStatus @default(PENDING)
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+
+  user             User              @relation(fields: [userId], references: [id])
+  disciplines      CoachDiscipline[]
+  courses          Course[]
+  liveSessions     LiveSession[]
+  payouts          Payout[]
+  officeHoursSlots OfficeHoursSlot[]
+  coachingRequests CoachingRequest[] @relation("CoachRequests")
+  trainedAthletes  TrainingLineage[]
+  beltPromotions   BeltPromotion[]   @relation("BeltPromotions")
+}
+
+enum CoachStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model Discipline {
+  id          Int      @id @default(autoincrement())
+  slug        String   @unique
+  name        String
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  courses           Course[]
+  liveSessions      LiveSession[]
+  coachAssociations CoachDiscipline[]
+  trainingSchedules TrainingSchedule[]
+  goals             Goal[]
+}
+
+model CoachDiscipline {
+  coachId      String
+  disciplineId Int
+
+  coach      CoachProfile @relation(fields: [coachId], references: [id])
+  discipline Discipline   @relation(fields: [disciplineId], references: [id])
+
+  @@id([coachId, disciplineId])
+}
+
+model Course {
+  id               String       @id @default(cuid())
+  slug             String       @unique
+  title            String
+  shortDescription String
+  longDescription  String
+  priceCents       Int
+  level            CourseLevel  @default(ALL_LEVELS)
+  durationMinutes  Int?
+  coverImageUrl    String?
+  trailerVideoUrl  String?
+  featured         Boolean      @default(false)
+  status           CourseStatus @default(DRAFT)
+  coachId          String
+  disciplineId     Int
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+
+  coach             CoachProfile       @relation(fields: [coachId], references: [id])
+  discipline        Discipline         @relation(fields: [disciplineId], references: [id])
+  lessons           Lesson[]
+  purchases         CoursePurchase[]
+  trainingSchedules TrainingSchedule[]
+  coachingRequests  CoachingRequest[]
+  goals             Goal[]
+}
+
+enum CourseStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+model Lesson {
+  id              String   @id @default(cuid())
+  courseId        String
+  title           String
+  description     String?
+  orderIndex      Int
+  durationSeconds Int?
+  videoUrl        String
+  isPreview       Boolean  @default(false)
+  moduleName      String?
+  createdAt       DateTime @default(now())
+
+  course Course @relation(fields: [courseId], references: [id])
+
+  @@index([courseId, orderIndex])
+}
+
+model LiveSession {
+  id              String            @id @default(cuid())
+  coachId         String
+  disciplineId    Int
+  title           String
+  description     String?
+  level           CourseLevel       @default(ALL_LEVELS)
+  startTime       DateTime
+  durationMinutes Int
+  capacity        Int
+  priceCents      Int
+  meetingUrl      String?
+  promoVideoUrl   String?
+  status          LiveSessionStatus @default(SCHEDULED)
+  createdAt       DateTime          @default(now())
+
+  coach      CoachProfile         @relation(fields: [coachId], references: [id])
+  discipline Discipline           @relation(fields: [disciplineId], references: [id])
+  bookings   LiveSessionBooking[]
+}
+
+enum LiveSessionStatus {
+  DRAFT
+  SCHEDULED
+  COMPLETED
+  CANCELED
+}
+
+model CoursePurchase {
+  id               String         @id @default(cuid())
+  userId           String
+  courseId         String
+  status           PurchaseStatus @default(PENDING)
+  amountCents      Int
+  currency         String         @default("usd")
+  paymentProvider  String         @default("stripe")
+  paymentStatus    String         @default("pending")
+  progressPercent  Int            @default(0)
+  accessGrantedAt  DateTime?
+  stripeCheckoutId String?
+  purchasedAt      DateTime       @default(now())
+  createdAt        DateTime       @default(now())
+
+  user   User   @relation(fields: [userId], references: [id])
+  course Course @relation(fields: [courseId], references: [id])
+
+  @@unique([userId, courseId])
+}
+
+model LiveSessionBooking {
+  id               String        @id @default(cuid())
+  userId           String
+  liveSessionId    String
+  status           BookingStatus @default(PENDING)
+  amountCents      Int
+  currency         String        @default("usd")
+  paymentStatus    String        @default("pending")
+  stripeCheckoutId String?
+  bookedAt         DateTime      @default(now())
+  createdAt        DateTime      @default(now())
+
+  liveSession LiveSession @relation(fields: [liveSessionId], references: [id])
+  user        User        @relation(fields: [userId], references: [id])
+
+  @@unique([userId, liveSessionId])
+}
+
+model Payout {
+  id                String       @id @default(cuid())
+  coachId           String
+  amountCents       Int
+  currency          String       @default("usd")
+  status            PayoutStatus @default(PENDING)
+  transferReference String?
+  providerPayoutId  String?
+  periodStart       DateTime
+  periodEnd         DateTime
+  payoutDate        DateTime?
+  createdAt         DateTime     @default(now())
+
+  coach CoachProfile @relation(fields: [coachId], references: [id])
+}
+
+model Subscription {
+  id                     String             @id @default(cuid())
+  userId                 String             @unique
+  tier                   SubscriptionTier
+  status                 SubscriptionStatus @default(ACTIVE)
+  stripeSubscriptionId   String?            @unique
+  stripePriceId          String?
+  currentPeriodStart     DateTime
+  currentPeriodEnd       DateTime
+  cancelAtPeriodEnd      Boolean            @default(false)
+  canceledAt             DateTime?
+  trialStart             DateTime?
+  trialEnd               DateTime?
+  monthlyCreditsRemaining Int               @default(0)
+  monthlyCoursesUsed     Int               @default(0)
+  createdAt              DateTime           @default(now())
+  updatedAt              DateTime           @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([stripeSubscriptionId])
+  @@index([status])
+}
+
+model CreditTransaction {
+  id              String     @id @default(cuid())
+  userId          String
+  type            CreditType
+  amount          Int
+  balance         Int
+  description     String
+  creditPackId    String?
+  expiresAt       DateTime?
+  sessionId       String?
+  createdAt       DateTime   @default(now())
+
+  user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  creditPack CreditPack? @relation(fields: [creditPackId], references: [id])
+
+  @@index([userId, createdAt])
+  @@index([expiresAt])
+}
+
+model CreditPack {
+  id                   String              @id @default(cuid())
+  name                 String
+  credits              Int
+  priceCents           Int
+  validityMonths       Int                 @default(6)
+  stripePriceId        String?             @unique
+  active               Boolean             @default(true)
+  createdAt            DateTime            @default(now())
+  updatedAt            DateTime            @updatedAt
+
+  transactions CreditTransaction[]
+}
+
+model OfficeHoursSlot {
+  id             String               @id @default(cuid())
+  coachId        String
+  startTime      DateTime
+  endTime        DateTime
+  isRecurring    Boolean              @default(false)
+  recurringRule  String?
+  maxAttendees   Int                  @default(1)
+  meetingUrl     String?
+  notes          String?
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+
+  coach    CoachProfile         @relation(fields: [coachId], references: [id], onDelete: Cascade)
+  bookings OfficeHoursBooking[]
+
+  @@index([coachId, startTime])
+}
+
+model OfficeHoursBooking {
+  id        String   @id @default(cuid())
+  slotId    String
+  userId    String
+  status    String   @default("confirmed")
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  slot OfficeHoursSlot @relation(fields: [slotId], references: [id], onDelete: Cascade)
+  user User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([slotId, userId])
+  @@index([userId])
+}
+
+// ============================================
+// Schedule & Reminders System
+// ============================================
+
+enum ScheduleFrequency {
+  ONCE
+  DAILY
+  WEEKLY
+  BIWEEKLY
+  MONTHLY
+  CUSTOM
+}
+
+enum ReminderType {
+  PUSH
+  EMAIL
+  SMS
+}
+
+enum ScheduleStatus {
+  ACTIVE
+  COMPLETED
+  SKIPPED
+  CANCELLED
+}
+
+model TrainingSchedule {
+  id              String            @id @default(cuid())
+  userId          String
+  title           String
+  description     String?
+  frequency       ScheduleFrequency @default(WEEKLY)
+  startDate       DateTime
+  endDate         DateTime?
+  daysOfWeek      Int[]             // [0-6] Sunday=0, Monday=1, etc
+  timeOfDay       String            // HH:MM format
+  durationMinutes Int               @default(60)
+  reminderMinutes Int               @default(30) // Remind X minutes before
+  isActive        Boolean           @default(true)
+  courseId        String?
+  disciplineId    Int?
+  notes           String?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  user        User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  course      Course?               @relation(fields: [courseId], references: [id], onDelete: SetNull)
+  discipline  Discipline?           @relation(fields: [disciplineId], references: [id], onDelete: SetNull)
+  occurrences ScheduleOccurrence[]
+  reminders   ScheduleReminder[]
+
+  @@index([userId, isActive])
+  @@index([startDate, endDate])
+}
+
+model ScheduleOccurrence {
+  id             String         @id @default(cuid())
+  scheduleId     String
+  scheduledFor   DateTime
+  completedAt    DateTime?
+  status         ScheduleStatus @default(ACTIVE)
+  durationActual Int? // Actual duration if completed
+  notes          String?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  schedule TrainingSchedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+
+  @@unique([scheduleId, scheduledFor])
+  @@index([scheduleId, scheduledFor])
+  @@index([scheduledFor, status])
+}
+
+model ScheduleReminder {
+  id          String       @id @default(cuid())
+  scheduleId  String
+  type        ReminderType @default(PUSH)
+  sendAt      DateTime
+  sent        Boolean      @default(false)
+  sentAt      DateTime?
+  error       String?
+  createdAt   DateTime     @default(now())
+
+  schedule TrainingSchedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+
+  @@index([sendAt, sent])
+  @@index([scheduleId])
+}
+
+model AdherenceStats {
+  id                  String   @id @default(cuid())
+  userId              String
+  weekStart           DateTime
+  weekEnd             DateTime
+  scheduledSessions   Int      @default(0)
+  completedSessions   Int      @default(0)
+  skippedSessions     Int      @default(0)
+  adherenceRate       Float    @default(0) // Percentage
+  totalMinutesTrained Int      @default(0)
+  streak              Int      @default(0) // Current consecutive weeks with >80% adherence
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, weekStart])
+  @@index([userId, weekStart])
+}
+
+// ============================================
+// Asynchronous Coaching System
+// ============================================
+
+enum CoachingRequestStatus {
+  PENDING
+  IN_REVIEW
+  RESPONDED
+  COMPLETED
+  ARCHIVED
+}
+
+enum CoachingRequestType {
+  VIDEO_REVIEW
+  TECHNIQUE_CHECK
+  FORM_ANALYSIS
+  TRAINING_QUESTION
+  STRATEGY_ADVICE
+  GENERAL
+}
+
+enum CoachingPriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+enum AttachmentType {
+  VIDEO
+  IMAGE
+  DOCUMENT
+  AUDIO
+}
+
+model CoachingRequest {
+  id          String                @id @default(cuid())
+  userId      String                // Student
+  coachId     String                // Assigned coach
+  status      CoachingRequestStatus @default(PENDING)
+  type        CoachingRequestType   @default(GENERAL)
+  priority    CoachingPriority      @default(NORMAL)
+  title       String
+  description String
+  tags        String[]              // For categorization/search
+  courseId    String?               // Optional: related course
+  lessonId    String?               // Optional: related lesson
+
+  // Timestamps
+  submittedAt DateTime              @default(now())
+  reviewedAt  DateTime?
+  completedAt DateTime?
+  createdAt   DateTime              @default(now())
+  updatedAt   DateTime              @updatedAt
+
+  user        User                  @relation("StudentRequests", fields: [userId], references: [id], onDelete: Cascade)
+  coach       CoachProfile          @relation("CoachRequests", fields: [coachId], references: [id])
+  course      Course?               @relation(fields: [courseId], references: [id], onDelete: SetNull)
+  messages    CoachingMessage[]
+  attachments CoachingAttachment[]
+
+  @@index([userId, status])
+  @@index([coachId, status])
+  @@index([submittedAt])
+  @@index([status, priority])
+}
+
+model CoachingMessage {
+  id              String   @id @default(cuid())
+  requestId       String
+  senderId        String
+  content         String
+  isCoachResponse Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  request     CoachingRequest      @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  attachments CoachingAttachment[]
+
+  @@index([requestId, createdAt])
+}
+
+model CoachingAttachment {
+  id         String         @id @default(cuid())
+  requestId  String?
+  messageId  String?
+  uploaderId String
+  type       AttachmentType
+  url        String
+  filename   String
+  fileSize   Int            // Bytes
+  mimeType   String?
+  duration   Int?           // For video/audio in seconds
+  createdAt  DateTime       @default(now())
+
+  request CoachingRequest? @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  message CoachingMessage? @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@index([requestId])
+  @@index([messageId])
+}
+
+// ============================================
+// Goal-based Personalization System
+// ============================================
+
+enum GoalType {
+  TECHNIQUE_MASTERY
+  COMPETITION_PREP
+  FITNESS_IMPROVEMENT
+  WEIGHT_CLASS
+  BELT_PROMOTION
+  SKILL_DEVELOPMENT
+  SPARRING_PERFORMANCE
+  CUSTOM
+}
+
+enum GoalStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  COMPLETED
+  PAUSED
+  ABANDONED
+}
+
+enum MilestoneStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  SKIPPED
+}
+
+enum RecommendationType {
+  COURSE
+  LIVE_SESSION
+  TRAINING_SCHEDULE
+  TECHNIQUE_FOCUS
+  COACH_CONSULTATION
+  REST_DAY
+}
+
+model Goal {
+  id              String     @id @default(cuid())
+  userId          String
+  type            GoalType
+  status          GoalStatus @default(NOT_STARTED)
+  title           String
+  description     String?
+  targetDate      DateTime?
+  startedAt       DateTime?
+  completedAt     DateTime?
+  progressPercent Int        @default(0)
+
+  // Goal specifics
+  targetValue     Float?     // e.g., weight, reps, time
+  currentValue    Float?
+  unit            String?    // e.g., "lbs", "minutes", "repetitions"
+
+  // Related entities
+  disciplineId    Int?
+  courseId        String?
+
+  // Metadata
+  isPublic        Boolean    @default(false)
+  tags            String[]
+  notes           String?
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  user           User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  discipline     Discipline?       @relation(fields: [disciplineId], references: [id], onDelete: SetNull)
+  course         Course?           @relation(fields: [courseId], references: [id], onDelete: SetNull)
+  milestones     GoalMilestone[]
+  progressLogs   GoalProgressLog[]
+  recommendations Recommendation[]
+
+  @@index([userId, status])
+  @@index([targetDate])
+  @@index([type, status])
+}
+
+model GoalMilestone {
+  id          String          @id @default(cuid())
+  goalId      String
+  title       String
+  description String?
+  status      MilestoneStatus @default(PENDING)
+  orderIndex  Int
+  targetDate  DateTime?
+  completedAt DateTime?
+  notes       String?
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  goal Goal @relation(fields: [goalId], references: [id], onDelete: Cascade)
+
+  @@index([goalId, orderIndex])
+  @@index([goalId, status])
+}
+
+model GoalProgressLog {
+  id          String   @id @default(cuid())
+  goalId      String
+  logDate     DateTime @default(now())
+  value       Float?   // Current measurement
+  notes       String?
+  mood        Int?     // 1-5 scale
+  difficulty  Int?     // 1-5 scale
+  attachments Json?    // URLs to photos/videos
+  createdAt   DateTime @default(now())
+
+  goal Goal @relation(fields: [goalId], references: [id], onDelete: Cascade)
+
+  @@index([goalId, logDate])
+}
+
+model Recommendation {
+  id             String             @id @default(cuid())
+  userId         String
+  goalId         String?
+  type           RecommendationType
+  title          String
+  description    String
+  reason         String? // Why this is recommended
+  priority       Int                @default(50) // 0-100
+  isActive       Boolean            @default(true)
+  isDismissed    Boolean            @default(false)
+  isCompleted    Boolean            @default(false)
+
+  // Related entities
+  courseId       String?
+  liveSessionId  String?
+  scheduleId     String?
+
+  // Metadata
+  validUntil     DateTime?
+  createdAt      DateTime           @default(now())
+  dismissedAt    DateTime?
+  completedAt    DateTime?
+
+  goal Goal? @relation(fields: [goalId], references: [id], onDelete: Cascade)
+
+  @@index([userId, isActive, isDismissed])
+  @@index([goalId])
+  @@index([priority, createdAt])
+}
+
+// ============================================
+// Training Lineage System
+// ============================================
+
+model TrainingLineage {
+  id              String   @id @default(cuid())
+  userId          String
+  coachName       String   // Name of the coach (may not be on platform)
+  coachProfileId  String?  // If coach is on platform
+  gymName         String?
+  location        String?
+  discipline      String   // e.g., "Boxing", "BJJ", "Muay Thai"
+  startYear       Int?
+  endYear         Int?     // Null if still training
+  beltOrRank      String?  // e.g., "Black Belt", "Professional"
+  isVerified      Boolean  @default(false)
+  notes           String?
+  orderIndex      Int      @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  coachProfile CoachProfile? @relation(fields: [coachProfileId], references: [id], onDelete: SetNull)
+
+  @@index([userId, orderIndex])
+  @@index([coachProfileId])
+}
+
+// ============================================
+// Belt/Rank Progression System
+// ============================================
+
+enum BeltColor {
+  WHITE
+  BLUE
+  PURPLE
+  BROWN
+  BLACK
+  RED_BLACK
+  RED_WHITE
+  RED
+  // Additional for other arts
+  YELLOW
+  ORANGE
+  GREEN
+  CORAL
+}
+
+model BeltPromotion {
+  id           String     @id @default(cuid())
+  userId       String
+  discipline   String     // e.g., "BJJ", "Judo", "Karate"
+  beltColor    BeltColor
+  stripes      Int        @default(0)  // 0-4 stripes for BJJ
+  degree       Int?       // For black belts (1st degree, 2nd, etc.)
+  promotedAt   DateTime
+  promotedBy   String?    // Name of instructor
+  coachId      String?    // If promoter is on platform
+  gymName      String?
+  certificateUrl String?
+  isVerified   Boolean    @default(false)
+  notes        String?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  user  User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  coach CoachProfile? @relation("BeltPromotions", fields: [coachId], references: [id], onDelete: SetNull)
+
+  @@index([userId, discipline, promotedAt])
+  @@index([coachId])
+}
+
+// ============================================
+// Weight Management System
+// ============================================
+
+enum WeightUnit {
+  LBS
+  KG
+}
+
+model WeightEntry {
+  id          String     @id @default(cuid())
+  userId      String
+  weight      Float      // Weight value
+  unit        WeightUnit @default(LBS)
+  loggedAt    DateTime   @default(now())
+  notes       String?
+  isFightWeight Boolean  @default(false)  // Was this for a weigh-in?
+  eventName   String?    // If fight weight, what event
+  createdAt   DateTime   @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, loggedAt])
+}
+
+model WeightGoal {
+  id              String     @id @default(cuid())
+  userId          String     @unique
+  targetWeight    Float
+  unit            WeightUnit @default(LBS)
+  targetDate      DateTime?
+  weightClass     String?    // e.g., "Lightweight 155", "Welterweight 170"
+  currentWeight   Float?
+  startWeight     Float?
+  startDate       DateTime   @default(now())
+  isActive        Boolean    @default(true)
+  notes           String?
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// ============================================
+// Fight Analysis System
+// ============================================
+
+enum FightType {
+  COMPETITION
+  SPARRING
+  TRAINING
+  EXHIBITION
+}
+
+enum FightResult {
+  WIN
+  LOSS
+  DRAW
+  NO_CONTEST
+  IN_PROGRESS
+}
+
+enum FinishType {
+  DECISION_UNANIMOUS
+  DECISION_SPLIT
+  DECISION_MAJORITY
+  KO
+  TKO
+  SUBMISSION
+  DQ
+  TECHNICAL_DECISION
+  NONE
+}
+
+model Fight {
+  id              String       @id @default(cuid())
+  userId          String
+  type            FightType    @default(SPARRING)
+  result          FightResult  @default(IN_PROGRESS)
+  finishType      FinishType   @default(NONE)
+  finishRound     Int?         // Round in which fight ended
+  finishTime      String?      // Time in round (e.g., "2:34")
+
+  // Event details
+  eventName       String?
+  eventDate       DateTime
+  location        String?
+  weightClass     String?
+
+  // Opponent info
+  opponentName    String?
+  opponentRecord  String?      // e.g., "5-2-0"
+  opponentNotes   String?
+
+  // Video reference
+  videoUrl        String?
+  thumbnailUrl    String?
+
+  // Summary stats
+  totalRounds     Int          @default(3)
+  roundMinutes    Int          @default(5)
+
+  // Tags for filtering
+  discipline      String?      // e.g., "MMA", "Boxing", "BJJ"
+  tags            String[]
+
+  // Notes
+  gameplanNotes   String?      // Pre-fight game plan
+  summaryNotes    String?      // Post-fight summary
+  lessonsLearned  String?      // Key takeaways
+
+  isPublic        Boolean      @default(false)
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  user       User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  rounds     FightRound[]
+  techniques FightTechnique[]
+
+  @@index([userId, eventDate])
+  @@index([result])
+  @@index([type])
+}
+
+model FightRound {
+  id              String   @id @default(cuid())
+  fightId         String
+  roundNumber     Int
+
+  // Striking stats
+  strikesLanded   Int      @default(0)
+  strikesAttempted Int     @default(0)
+  sigStrikesLanded Int     @default(0)
+  sigStrikesAttempted Int  @default(0)
+  knockdowns      Int      @default(0)
+
+  // Grappling stats
+  takedownsLanded Int      @default(0)
+  takedownsAttempted Int   @default(0)
+  submissionAttempts Int   @default(0)
+  sweeps          Int      @default(0)
+  reversals       Int      @default(0)
+
+  // Control time (in seconds)
+  controlTimeTop  Int      @default(0)
+  controlTimeBack Int      @default(0)
+  controlTimeClinch Int    @default(0)
+  timeInGuard     Int      @default(0)
+
+  // Defense
+  strikesAbsorbed Int      @default(0)
+  takedownsDefended Int    @default(0)
+  submissionsDefended Int  @default(0)
+
+  // Round outcome
+  roundWinner     String?  // "self", "opponent", "even"
+  notes           String?
+  keyMoments      String?  // Timestamps of important moments
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  fight Fight @relation(fields: [fightId], references: [id], onDelete: Cascade)
+
+  @@unique([fightId, roundNumber])
+  @@index([fightId])
+}
+
+model FightTechnique {
+  id              String   @id @default(cuid())
+  fightId         String
+  roundNumber     Int?     // Null if general observation
+
+  // Technique details
+  techniqueName   String   // e.g., "Rear Naked Choke", "Jab", "Double Leg"
+  category        String   // e.g., "Strikes", "Takedowns", "Submissions", "Sweeps"
+
+  // Performance
+  attempted       Int      @default(0)
+  successful      Int      @default(0)
+
+  // Timestamp reference (if video available)
+  timestamp       String?  // e.g., "R2 3:45"
+
+  // Notes
+  notes           String?
+  wasEffective    Boolean  @default(true)
+  needsWork       Boolean  @default(false)
+
+  createdAt       DateTime @default(now())
+
+  fight Fight @relation(fields: [fightId], references: [id], onDelete: Cascade)
+
+  @@index([fightId])
+  @@index([techniqueName])
+}
+
+// ============================================
+// Sparring Partner Matching System
+// ============================================
+
+enum SparringRequestStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  CANCELED
+  COMPLETED
+}
+
+model SparringPreference {
+  id            String   @id @default(cuid())
+  userId        String   @unique
+  isAvailable   Boolean  @default(true)
+  weightClass   String?  // e.g., "Lightweight 155", "Welterweight 170"
+  disciplines   String[] // e.g., ["MMA", "Boxing", "BJJ"]
+  location      String?  // City/region
+  latitude      Float?   // For distance calculations
+  longitude     Float?
+  radius        Int      @default(25)  // Search radius in miles
+  experienceMin Int?     // Minimum years of experience
+  experienceMax Int?     // Maximum years of experience
+  skillLevel    String?  // e.g., "Beginner", "Intermediate", "Advanced", "Pro"
+  preferredDays String[] // e.g., ["Monday", "Wednesday", "Saturday"]
+  preferredTime String?  // e.g., "Morning", "Afternoon", "Evening"
+  gymName       String?
+  notes         String?  // Additional info for potential partners
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([isAvailable, weightClass])
+  @@index([location])
+}
+
+model SparringRequest {
+  id            String                @id @default(cuid())
+  requesterId   String                // User sending the request
+  partnerId     String                // User receiving the request
+  status        SparringRequestStatus @default(PENDING)
+
+  // Proposed session details
+  proposedDate  DateTime?
+  proposedTime  String?               // e.g., "14:00"
+  location      String?
+  discipline    String?               // e.g., "MMA", "Boxing"
+  intensity     String?               // e.g., "Light", "Medium", "Hard"
+  duration      Int?                  // Duration in minutes
+
+  // Messages
+  message       String?               // Initial request message
+  responseNote  String?               // Response from partner
+
+  // Timestamps
+  respondedAt   DateTime?
+  completedAt   DateTime?
+  createdAt     DateTime              @default(now())
+  updatedAt     DateTime              @updatedAt
+
+  requester User @relation("SparringRequester", fields: [requesterId], references: [id], onDelete: Cascade)
+  partner   User @relation("SparringPartner", fields: [partnerId], references: [id], onDelete: Cascade)
+
+  @@index([requesterId, status])
+  @@index([partnerId, status])
+  @@index([proposedDate])
+}
+
+// ============================================
+// Connected Calendars (Google, Apple, etc.)
+// ============================================
+
+enum CalendarProvider {
+  GOOGLE
+  APPLE
+  OUTLOOK
+}
+
+model ConnectedCalendar {
+  id              String           @id @default(cuid())
+  userId          String
+  provider        CalendarProvider
+  email           String?          // Calendar account email
+  accessToken     String           // Encrypted access token
+  refreshToken    String?          // Encrypted refresh token
+  tokenExpiry     DateTime?
+  calendarId      String?          // Selected calendar ID for syncing
+  calendarName    String?          // Display name of the calendar
+  isActive        Boolean          @default(true)
+  lastSyncAt      DateTime?
+  syncErrors      Int              @default(0)
+  lastSyncError   String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, provider])
+  @@index([userId, isActive])
+}
+
+// Calendar subscription for external calendar apps (Apple, Outlook, etc.)
+model CalendarSubscription {
+  id             String    @id @default(cuid())
+  userId         String    @unique
+  token          String    @unique // Unique token for subscription URL
+  isActive       Boolean   @default(true)
+  lastAccessedAt DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// User notification preferences
+model NotificationPreferences {
+  id                    String   @id @default(cuid())
+  userId                String   @unique
+
+  // Email notifications
+  emailCoaching         Boolean  @default(true)  // Coaching request updates
+  emailSessions         Boolean  @default(true)  // Live session reminders
+  emailGoals            Boolean  @default(true)  // Goal progress reminders
+  emailSparring         Boolean  @default(true)  // Sparring request updates
+  emailBilling          Boolean  @default(true)  // Billing and subscription updates
+  emailMarketing        Boolean  @default(false) // Product updates and marketing
+
+  // Push notifications (for future use)
+  pushEnabled           Boolean  @default(false)
+  pushSessionReminders  Boolean  @default(true)
+  pushMessages          Boolean  @default(true)
+
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
