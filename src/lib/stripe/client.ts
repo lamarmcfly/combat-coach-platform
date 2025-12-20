@@ -1,20 +1,41 @@
 import Stripe from 'stripe';
 
-if (!process.env.STRIPE_SECRET_KEY) {
-  throw new Error('STRIPE_SECRET_KEY is not set in environment variables');
+/**
+ * Lazy-initialized Stripe client to avoid build-time errors
+ * when environment variables aren't set (e.g., during Vercel build)
+ */
+let stripeInstance: Stripe | null = null;
+
+export function getStripe(): Stripe {
+  if (!stripeInstance) {
+    if (!process.env.STRIPE_SECRET_KEY) {
+      throw new Error('STRIPE_SECRET_KEY is not set in environment variables');
+    }
+    stripeInstance = new Stripe(process.env.STRIPE_SECRET_KEY, {
+      apiVersion: '2025-10-29.clover',
+      typescript: true,
+      appInfo: {
+        name: 'CombatCoachPlatform',
+        version: '1.0.0',
+      },
+    });
+  }
+  return stripeInstance;
 }
 
 /**
- * Stripe client instance configured for the application
+ * Stripe client instance - use getStripe() for lazy initialization
+ * @deprecated Use getStripe() instead for build-time safety
  */
-export const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
-  apiVersion: '2025-10-29.clover',
-  typescript: true,
-  appInfo: {
-    name: 'CombatCoachPlatform',
-    version: '1.0.0',
-  },
-});
+export const stripe = {
+  get customers() { return getStripe().customers; },
+  get subscriptions() { return getStripe().subscriptions; },
+  get checkout() { return getStripe().checkout; },
+  get webhooks() { return getStripe().webhooks; },
+  get paymentMethods() { return getStripe().paymentMethods; },
+  get invoices() { return getStripe().invoices; },
+  get billingPortal() { return getStripe().billingPortal; },
+};
 
 /**
  * Webhook signature verification
