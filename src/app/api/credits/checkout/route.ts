@@ -6,6 +6,9 @@ import { prisma } from '@/db/client';
 import { getOrCreateCustomer, createCreditPackCheckout } from '@/lib/stripe/client';
 import { CREDIT_PACKS } from '@/lib/stripe/config';
 
+// Force dynamic rendering to prevent build-time errors
+export const dynamic = 'force-dynamic';
+
 export async function POST(req: NextRequest) {
   try {
     const session = (await getServerSession(authOptions)) as Session | null;

@@ -7,6 +7,9 @@ import Stripe from 'stripe';
 import { TIER_CONFIG, getFeatureLimit } from '@/lib/stripe/config';
 import { sendTemplatedEmail } from '@/lib/email/emailService';
 
+// Force dynamic rendering to prevent build-time errors
+export const dynamic = 'force-dynamic';
+
 export async function POST(req: NextRequest) {
   const body = await req.text();
   const headersList = await headers();

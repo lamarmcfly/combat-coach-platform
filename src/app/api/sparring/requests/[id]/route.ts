@@ -5,6 +5,9 @@ import { db } from '@/db/client';
 import { SparringRequestStatus } from '@prisma/client';
 import { sendTemplatedEmail } from '@/lib/email/emailService';
 
+// Force dynamic rendering to prevent build-time errors
+export const dynamic = 'force-dynamic';
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }

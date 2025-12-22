@@ -4,6 +4,9 @@ import { authOptions } from '@/lib/auth/options';
 import { ScheduleService } from '@/services/scheduleService';
 import { prisma } from '@/db/client';
 
+// Force dynamic rendering to prevent build-time errors
+export const dynamic = 'force-dynamic';
+
 // PATCH - Complete or skip occurrence
 export async function PATCH(
   request: Request,

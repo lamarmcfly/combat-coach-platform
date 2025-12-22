@@ -4,6 +4,9 @@ import { authOptions } from '@/lib/auth/options';
 import { db } from '@/db/client';
 import { getValidAccessToken, listCalendars } from '@/lib/calendar/googleCalendar';
 
+// Force dynamic rendering to prevent build-time errors
+export const dynamic = 'force-dynamic';
+
 /**
  * GET - List available Google Calendars
  */

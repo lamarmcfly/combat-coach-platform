@@ -4,6 +4,9 @@ import { authOptions } from '@/lib/auth/options';
 import { GoalService } from '@/services/goalService';
 import { GoalType, GoalStatus } from '@prisma/client';
 
+// Force dynamic rendering to prevent build-time errors
+export const dynamic = 'force-dynamic';
+
 // GET - Fetch user's goals
 export async function GET(request: Request) {
   try {

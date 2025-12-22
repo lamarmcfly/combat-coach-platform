@@ -4,6 +4,9 @@ import { authOptions } from '@/lib/auth/options';
 import { GoalService } from '@/services/goalService';
 import { RecommendationType } from '@prisma/client';
 
+// Force dynamic rendering to prevent build-time errors
+export const dynamic = 'force-dynamic';
+
 // GET - Get recommendations
 export async function GET(request: Request) {
   try {

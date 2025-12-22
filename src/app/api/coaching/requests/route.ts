@@ -11,6 +11,9 @@ import {
 } from '@prisma/client';
 import { sendTemplatedEmail } from '@/lib/email/emailService';
 
+// Force dynamic rendering to prevent build-time errors
+export const dynamic = 'force-dynamic';
+
 // GET - Fetch coaching requests (for student or coach)
 export async function GET(request: Request) {
   try {

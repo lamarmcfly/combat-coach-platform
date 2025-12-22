@@ -4,6 +4,9 @@ import { authOptions } from '@/lib/auth/options';
 import { prisma } from '@/db/client';
 import { SubscriptionTier } from '@prisma/client';
 
+// Force dynamic rendering to prevent build-time errors
+export const dynamic = 'force-dynamic';
+
 export async function POST(request: Request) {
   try {
     const session = await getServerSession(authOptions);

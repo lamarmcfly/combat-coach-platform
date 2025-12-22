@@ -5,6 +5,9 @@ import { GoalService } from '@/services/goalService';
 import { prisma } from '@/db/client';
 import { GoalStatus } from '@prisma/client';
 
+// Force dynamic rendering to prevent build-time errors
+export const dynamic = 'force-dynamic';
+
 // GET - Get goal details
 export async function GET(
   request: Request,

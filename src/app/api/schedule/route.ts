@@ -4,6 +4,9 @@ import { authOptions } from '@/lib/auth/options';
 import { ScheduleService } from '@/services/scheduleService';
 import { ScheduleFrequency } from '@prisma/client';
 
+// Force dynamic rendering to prevent build-time errors
+export const dynamic = 'force-dynamic';
+
 // GET - Get user's schedules
 export async function GET() {
   try {

@@ -5,6 +5,9 @@ import { CoachingService } from '@/services/coachingService';
 import { prisma } from '@/db/client';
 import { sendTemplatedEmail } from '@/lib/email/emailService';
 
+// Force dynamic rendering to prevent build-time errors
+export const dynamic = 'force-dynamic';
+
 // POST - Add message to coaching request
 export async function POST(
   request: Request,

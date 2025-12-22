@@ -2,7 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth/options';
 import { db } from '@/db/client';
-import { createBillingPortalSession } from '@/lib/stripe/client';
+import { createBillingPortalSession, isStripeConfigured } from '@/lib/stripe/client';
+
+// Force dynamic rendering to prevent build-time errors
+export const dynamic = 'force-dynamic';
 
 /**
  * POST - Create a Stripe Billing Portal session

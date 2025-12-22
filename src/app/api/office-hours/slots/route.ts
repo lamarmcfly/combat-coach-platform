@@ -4,6 +4,9 @@ import { authOptions } from '@/lib/auth/options';
 import { prisma } from '@/db/client';
 import { SubscriptionTier } from '@prisma/client';
 
+// Force dynamic rendering to prevent build-time errors
+export const dynamic = 'force-dynamic';
+
 // Get available office hours slots
 export async function GET(request: Request) {
   try {

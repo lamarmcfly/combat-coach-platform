@@ -5,6 +5,9 @@ import { CoachingService } from '@/services/coachingService';
 import { prisma } from '@/db/client';
 import { CoachingRequestStatus } from '@prisma/client';
 
+// Force dynamic rendering to prevent build-time errors
+export const dynamic = 'force-dynamic';
+
 // GET - Get request details
 export async function GET(
   request: Request,

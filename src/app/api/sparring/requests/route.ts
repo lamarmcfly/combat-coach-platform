@@ -4,6 +4,9 @@ import { authOptions } from '@/lib/auth/options';
 import { db } from '@/db/client';
 import { sendTemplatedEmail } from '@/lib/email/emailService';
 
+// Force dynamic rendering to prevent build-time errors
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);

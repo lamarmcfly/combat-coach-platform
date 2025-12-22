@@ -4,6 +4,9 @@ import { authOptions } from '@/lib/auth/options';
 import { db } from '@/db/client';
 import { randomBytes } from 'crypto';
 
+// Force dynamic rendering to prevent build-time errors
+export const dynamic = 'force-dynamic';
+
 /**
  * GET - Get current subscription status and URL
  */

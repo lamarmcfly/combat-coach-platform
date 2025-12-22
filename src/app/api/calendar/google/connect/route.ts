@@ -4,6 +4,9 @@ import { authOptions } from '@/lib/auth/options';
 import { getAuthorizationUrl, isGoogleCalendarConfigured } from '@/lib/calendar/googleCalendar';
 import { randomBytes } from 'crypto';
 
+// Force dynamic rendering to prevent build-time errors
+export const dynamic = 'force-dynamic';
+
 export async function GET() {
   try {
     const session = await getServerSession(authOptions);

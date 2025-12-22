@@ -1,6 +1,13 @@
 import Stripe from 'stripe';
 
 /**
+ * Check if Stripe is configured (has API key)
+ */
+export function isStripeConfigured(): boolean {
+  return !!process.env.STRIPE_SECRET_KEY;
+}
+
+/**
  * Lazy-initialized Stripe client to avoid build-time errors
  * when environment variables aren't set (e.g., during Vercel build)
  */
@@ -25,7 +32,7 @@ export function getStripe(): Stripe {
 
 /**
  * Stripe client instance - use getStripe() for lazy initialization
- * @deprecated Use getStripe() instead for build-time safety
+ * Only throws when actually used at runtime, not at build time
  */
 export const stripe = {
   get customers() { return getStripe().customers; },

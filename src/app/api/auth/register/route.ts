@@ -4,6 +4,9 @@ import bcrypt from "bcryptjs";
 import { Role } from "@prisma/client";
 import { sendTemplatedEmail } from "@/lib/email/emailService";
 
+// Force dynamic rendering to prevent build-time errors
+export const dynamic = 'force-dynamic';
+
 export async function POST(request: Request) {
   const { email, password, firstName, lastName } = await request.json();
   if (!email || !password) {

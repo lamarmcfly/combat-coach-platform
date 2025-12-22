@@ -7,6 +7,9 @@ import { getOrCreateCustomer, createSubscriptionCheckout } from '@/lib/stripe/cl
 import { TIER_CONFIG } from '@/lib/stripe/config';
 import { SubscriptionTier } from '@prisma/client';
 
+// Force dynamic rendering to prevent build-time errors
+export const dynamic = 'force-dynamic';
+
 export async function POST(req: NextRequest) {
   try {
     const session = (await getServerSession(authOptions)) as Session | null;

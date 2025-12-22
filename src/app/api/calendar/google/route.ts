@@ -10,6 +10,9 @@ import {
   listCalendars,
 } from '@/lib/calendar/googleCalendar';
 
+// Force dynamic rendering to prevent build-time errors
+export const dynamic = 'force-dynamic';
+
 /**
  * GET - Get Google Calendar connection status
  */

@@ -5,6 +5,9 @@ import { GoalService } from '@/services/goalService';
 import { prisma } from '@/db/client';
 import { MilestoneStatus } from '@prisma/client';
 
+// Force dynamic rendering to prevent build-time errors
+export const dynamic = 'force-dynamic';
+
 // PATCH - Update milestone
 export async function PATCH(
   request: Request,

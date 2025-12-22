@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/db/client';
 import { generateScheduleICS, TrainingScheduleInput } from '@/lib/calendar/icsGenerator';
 
+// Force dynamic rendering to prevent build-time errors
+export const dynamic = 'force-dynamic';
+
 /**
  * Public calendar subscription endpoint
  * Returns ICS feed for any calendar app to subscribe to

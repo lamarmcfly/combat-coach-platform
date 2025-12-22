@@ -4,6 +4,9 @@ import { authOptions } from '@/lib/auth/options';
 import { GoalService } from '@/services/goalService';
 import { prisma } from '@/db/client';
 
+// Force dynamic rendering to prevent build-time errors
+export const dynamic = 'force-dynamic';
+
 // PATCH - Dismiss or complete recommendation
 export async function PATCH(
   request: Request,

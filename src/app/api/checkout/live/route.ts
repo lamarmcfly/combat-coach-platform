@@ -3,6 +3,9 @@ import { createLiveSessionCheckoutSession } from "@/lib/payments/paymentService"
 import { getCurrentSession } from "@/lib/auth/session";
 import { SubscriptionService } from "@/services/subscriptionService";
 
+// Force dynamic rendering to prevent build-time errors
+export const dynamic = 'force-dynamic';
+
 export async function POST(request: Request) {
   const session = await getCurrentSession();
   if (!session?.user?.id) {

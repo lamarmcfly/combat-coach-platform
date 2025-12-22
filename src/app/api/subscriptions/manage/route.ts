@@ -6,6 +6,9 @@ import { SubscriptionService } from '@/services/subscriptionService';
 import { SubscriptionTier } from '@prisma/client';
 import { compareTiers } from '@/lib/stripe/config';
 
+// Force dynamic rendering to prevent build-time errors
+export const dynamic = 'force-dynamic';
+
 export async function POST(req: NextRequest) {
   try {
     const session = (await getServerSession(authOptions)) as Session | null;

@@ -4,6 +4,9 @@ import { Session } from 'next-auth';
 import { authOptions } from '@/lib/auth/options';
 import { CreditService } from '@/services/creditService';
 
+// Force dynamic rendering to prevent build-time errors
+export const dynamic = 'force-dynamic';
+
 export async function GET(req: NextRequest) {
   try {
     const session = (await getServerSession(authOptions)) as Session | null;
