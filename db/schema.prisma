@@ -1146,3 +1146,147 @@ model NotificationPreferences {
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
+
+// ============================================
+// Admin Content Management System (CMS)
+// ============================================
+
+enum ContentType {
+  TEXT
+  RICH_TEXT
+  IMAGE
+  VIDEO
+  GALLERY
+  LINK
+  HTML
+  JSON
+}
+
+enum ContentStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+// Content Sections - Define areas of the site that can be edited
+model ContentSection {
+  id          String   @id @default(cuid())
+  slug        String   @unique  // e.g., "hero-banner", "about-section", "feature-videos"
+  name        String            // Display name for admin
+  description String?           // Help text for editors
+  page        String            // Which page this belongs to (e.g., "home", "about", "pricing")
+  orderIndex  Int      @default(0)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  contents SiteContent[]
+
+  @@index([page, orderIndex])
+  @@index([slug])
+}
+
+// Site Content - Individual content items that can be edited
+model SiteContent {
+  id          String        @id @default(cuid())
+  sectionId   String
+  key         String        // Unique key within section (e.g., "headline", "background-image")
+  type        ContentType   @default(TEXT)
+  status      ContentStatus @default(PUBLISHED)
+
+  // Content values (use appropriate field based on type)
+  textValue   String?       // For TEXT type
+  richText    String?       // For RICH_TEXT type (HTML/Markdown)
+  mediaUrl    String?       // For IMAGE, VIDEO types
+  mediaAlt    String?       // Alt text for images
+  linkUrl     String?       // For LINK type
+  linkText    String?       // Display text for links
+  jsonValue   Json?         // For complex structured data
+
+  // Metadata
+  label       String?       // Display label for admin
+  helpText    String?       // Help text for editors
+  placeholder String?       // Placeholder value (shown if empty)
+  isRequired  Boolean       @default(false)
+  orderIndex  Int           @default(0)
+
+  // Version history
+  version     Int           @default(1)
+  publishedAt DateTime?
+  publishedBy String?       // Admin user ID who published
+
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  section     ContentSection @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  history     ContentHistory[]
+  media       MediaAsset?
+
+  @@unique([sectionId, key])
+  @@index([sectionId, orderIndex])
+  @@index([status])
+}
+
+// Content History - Track changes for audit/rollback
+model ContentHistory {
+  id          String      @id @default(cuid())
+  contentId   String
+  version     Int
+  textValue   String?
+  richText    String?
+  mediaUrl    String?
+  jsonValue   Json?
+  changedBy   String      // Admin user ID
+  changeNote  String?     // Optional note about the change
+  createdAt   DateTime    @default(now())
+
+  content     SiteContent @relation(fields: [contentId], references: [id], onDelete: Cascade)
+
+  @@index([contentId, version])
+}
+
+// Media Assets - Centralized media library
+model MediaAsset {
+  id            String    @id @default(cuid())
+  contentId     String?   @unique // Optional link to specific content
+  filename      String
+  originalName  String
+  mimeType      String
+  size          Int       // File size in bytes
+  url           String    // Storage URL
+  thumbnailUrl  String?   // For images/videos
+  width         Int?      // Image/video width
+  height        Int?      // Image/video height
+  duration      Int?      // Video duration in seconds
+  alt           String?   // Alt text
+  caption       String?
+  tags          String[]  // For organization/search
+  uploadedBy    String    // Admin user ID
+  folder        String    @default("general") // Organization folder
+  isPublic      Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  content       SiteContent? @relation(fields: [contentId], references: [id], onDelete: SetNull)
+
+  @@index([folder])
+  @@index([uploadedBy])
+  @@index([mimeType])
+}
+
+// Platform Settings - Global configuration
+model PlatformSettings {
+  id            String    @id @default(cuid())
+  key           String    @unique
+  value         String
+  type          String    @default("string") // string, number, boolean, json
+  category      String    @default("general") // general, branding, features, etc.
+  label         String?   // Display label for admin
+  description   String?   // Help text
+  isPublic      Boolean   @default(false) // Whether visible to non-admins
+  updatedBy     String?   // Last admin to update
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([category])
+}
