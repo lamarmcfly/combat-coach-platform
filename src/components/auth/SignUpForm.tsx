@@ -4,8 +4,14 @@ import { FormEvent, useState } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 
+interface ValidationError {
+  field: string;
+  message: string;
+}
+
 export function SignUpForm() {
   const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<ValidationError[]>([]);
   const [loading, setLoading] = useState(false);
   const router = useRouter();
 
@@ -13,6 +19,7 @@ export function SignUpForm() {
     event.preventDefault();
     setLoading(true);
     setError(null);
+    setFieldErrors([]);
 
     const formData = new FormData(event.currentTarget);
     const payload = {
@@ -30,7 +37,12 @@ export function SignUpForm() {
       });
       if (!response.ok) {
         const body = await response.json();
-        setError(body.error ?? "Unable to create account");
+        if (body.details && Array.isArray(body.details)) {
+          setFieldErrors(body.details);
+          setError(body.error ?? "Please fix the errors below");
+        } else {
+          setError(body.error ?? "Unable to create account");
+        }
         setLoading(false);
         return;
       }
@@ -54,6 +66,9 @@ export function SignUpForm() {
     }
   };
 
+  const getFieldError = (field: string) =>
+    fieldErrors.find(e => e.field === field)?.message;
+
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-4">
       <div className="grid gap-4 md:grid-cols-2">
@@ -62,16 +77,26 @@ export function SignUpForm() {
           <input
             name="firstName"
             required
-            className="rounded-md border border-[#2a2b30] bg-[#0f0f12] px-3 py-2 text-copy focus:border-accent focus:outline-none"
+            className={`rounded-md border bg-[#0f0f12] px-3 py-2 text-copy focus:border-accent focus:outline-none ${
+              getFieldError("firstName") ? "border-red-500" : "border-[#2a2b30]"
+            }`}
           />
+          {getFieldError("firstName") && (
+            <span className="text-xs text-red-500">{getFieldError("firstName")}</span>
+          )}
         </label>
         <label className="flex flex-col gap-2 text-sm">
           Last Name
           <input
             name="lastName"
             required
-            className="rounded-md border border-[#2a2b30] bg-[#0f0f12] px-3 py-2 text-copy focus:border-accent focus:outline-none"
+            className={`rounded-md border bg-[#0f0f12] px-3 py-2 text-copy focus:border-accent focus:outline-none ${
+              getFieldError("lastName") ? "border-red-500" : "border-[#2a2b30]"
+            }`}
           />
+          {getFieldError("lastName") && (
+            <span className="text-xs text-red-500">{getFieldError("lastName")}</span>
+          )}
         </label>
       </div>
       <label className="flex flex-col gap-2 text-sm">
@@ -80,8 +105,13 @@ export function SignUpForm() {
           name="email"
           type="email"
           required
-          className="rounded-md border border-[#2a2b30] bg-[#0f0f12] px-3 py-2 text-copy focus:border-accent focus:outline-none"
+          className={`rounded-md border bg-[#0f0f12] px-3 py-2 text-copy focus:border-accent focus:outline-none ${
+            getFieldError("email") ? "border-red-500" : "border-[#2a2b30]"
+          }`}
         />
+        {getFieldError("email") && (
+          <span className="text-xs text-red-500">{getFieldError("email")}</span>
+        )}
       </label>
       <label className="flex flex-col gap-2 text-sm">
         Password
@@ -90,10 +120,18 @@ export function SignUpForm() {
           type="password"
           minLength={8}
           required
-          className="rounded-md border border-[#2a2b30] bg-[#0f0f12] px-3 py-2 text-copy focus:border-accent focus:outline-none"
+          className={`rounded-md border bg-[#0f0f12] px-3 py-2 text-copy focus:border-accent focus:outline-none ${
+            getFieldError("password") ? "border-red-500" : "border-[#2a2b30]"
+          }`}
         />
+        <span className="text-xs text-copy-muted">
+          Must be at least 8 characters with uppercase, lowercase, and a number
+        </span>
+        {getFieldError("password") && (
+          <span className="text-xs text-red-500">{getFieldError("password")}</span>
+        )}
       </label>
-      {error ? <p className="text-sm text-accent">{error}</p> : null}
+      {error ? <p className="text-sm text-red-500">{error}</p> : null}
       <button
         type="submit"
         disabled={loading}
