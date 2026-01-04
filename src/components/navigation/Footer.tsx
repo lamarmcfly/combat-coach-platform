@@ -17,7 +17,7 @@ export function Footer() {
             </h3>
             <ul className="mt-4 space-y-3">
               <li>
-                <Link href="/browse" className="text-gray-400 hover:text-white text-sm">
+                <Link href="/courses" className="text-gray-400 hover:text-white text-sm">
                   Browse Courses
                 </Link>
               </li>
@@ -41,7 +41,7 @@ export function Footer() {
             </h3>
             <ul className="mt-4 space-y-3">
               <li>
-                <Link href="/my/dashboard" className="text-gray-400 hover:text-white text-sm">
+                <Link href="/my/training" className="text-gray-400 hover:text-white text-sm">
                   Dashboard
                 </Link>
               </li>

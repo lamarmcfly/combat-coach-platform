@@ -77,6 +77,21 @@ export async function getFeaturedCoaches(limit = 4): Promise<CoachSummary[]> {
   }
 }
 
+export async function getAllCoaches(): Promise<CoachSummary[]> {
+  try {
+    const coachProfiles = await db.coachProfile.findMany({
+      where: { status: "APPROVED" },
+      orderBy: { updatedAt: "desc" },
+      include: { user: true, disciplines: { include: { discipline: true } } },
+    });
+    if (!coachProfiles.length) return sampleCoaches;
+    return coachProfiles.map(mapCoachProfile);
+  } catch (error) {
+    console.warn("Failed to load coaches, using sample fallback", error);
+    return sampleCoaches;
+  }
+}
+
 export async function getCoachByIdServer(id: string): Promise<CoachSummary | undefined> {
   try {
     const coachProfile = await db.coachProfile.findUnique({
