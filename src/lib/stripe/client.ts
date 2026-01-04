@@ -94,7 +94,22 @@ export async function createSubscriptionCheckout(params: {
   cancelUrl: string;
   userId: string;
   tier: string;
+  billingInterval?: string;
+  trialDays?: number;
 }): Promise<Stripe.Checkout.Session> {
+  const subscriptionData: Stripe.Checkout.SessionCreateParams['subscription_data'] = {
+    metadata: {
+      userId: params.userId,
+      tier: params.tier,
+      billingInterval: params.billingInterval || 'monthly',
+    },
+  };
+
+  // Add trial period if specified
+  if (params.trialDays && params.trialDays > 0) {
+    subscriptionData.trial_period_days = params.trialDays;
+  }
+
   return stripe.checkout.sessions.create({
     customer: params.customerId,
     mode: 'subscription',
@@ -110,13 +125,29 @@ export async function createSubscriptionCheckout(params: {
     metadata: {
       userId: params.userId,
       tier: params.tier,
+      billingInterval: params.billingInterval || 'monthly',
+      hasTrial: params.trialDays ? 'true' : 'false',
     },
-    subscription_data: {
-      metadata: {
-        userId: params.userId,
-        tier: params.tier,
-      },
-    },
+    subscription_data: subscriptionData,
+  });
+}
+
+/**
+ * Create a trial subscription checkout session
+ */
+export async function createTrialCheckout(params: {
+  customerId: string;
+  priceId: string;
+  successUrl: string;
+  cancelUrl: string;
+  userId: string;
+  tier: string;
+  trialDays: number;
+  billingInterval?: string;
+}): Promise<Stripe.Checkout.Session> {
+  return createSubscriptionCheckout({
+    ...params,
+    trialDays: params.trialDays,
   });
 }
 

@@ -114,6 +114,8 @@ const templateToPreference: Record<EmailTemplate, keyof typeof preferenceDefault
   sparring_request_received: 'emailSparring',
   sparring_request_accepted: 'emailSparring',
   welcome: null, // Always send welcome emails
+  passwordReset: null, // Always send password reset emails
+  passwordChanged: null, // Always send password changed confirmation
 };
 
 const preferenceDefaults = {
@@ -184,7 +186,9 @@ export type EmailTemplate =
   | 'coaching_response_received'
   | 'sparring_request_received'
   | 'sparring_request_accepted'
-  | 'welcome';
+  | 'welcome'
+  | 'passwordReset'
+  | 'passwordChanged';
 
 interface RenderedEmail {
   subject: string;
@@ -337,6 +341,38 @@ function renderTemplate(
         </div>
       `,
       text: `Welcome to Combat Coach, ${variables.firstName}! Start your journey at ${variables.dashboardUrl}`,
+    },
+
+    passwordReset: {
+      subject: 'Reset Your Password - Combat Coach',
+      html: `
+        <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #e6a627;">Password Reset Request</h2>
+          <p>Hi ${variables.firstName || 'there'},</p>
+          <p>We received a request to reset your Combat Coach password.</p>
+          <p>Click the button below to reset your password. This link will expire in ${variables.expiryHours} hours.</p>
+          <a href="${variables.resetUrl}" style="display: inline-block; background: #e6a627; color: #000; padding: 12px 24px; text-decoration: none; border-radius: 6px; margin-top: 16px;">Reset Password</a>
+          <p style="margin-top: 20px; color: #666;">If you didn't request this password reset, you can safely ignore this email.</p>
+          <hr style="border: none; border-top: 1px solid #333; margin: 20px 0;" />
+          <p style="color: #666; font-size: 12px;">Combat Coach Platform</p>
+        </div>
+      `,
+      text: `Reset your password: ${variables.resetUrl}. This link expires in ${variables.expiryHours} hours.`,
+    },
+
+    passwordChanged: {
+      subject: 'Your Password Has Been Changed - Combat Coach',
+      html: `
+        <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #22c55e;">Password Changed Successfully</h2>
+          <p>Hi ${variables.firstName || 'there'},</p>
+          <p>Your Combat Coach password has been successfully changed.</p>
+          <p>If you did not make this change, please contact support immediately.</p>
+          <hr style="border: none; border-top: 1px solid #333; margin: 20px 0;" />
+          <p style="color: #666; font-size: 12px;">Combat Coach Platform</p>
+        </div>
+      `,
+      text: `Your password has been changed. If you did not make this change, please contact support.`,
     },
   };
 

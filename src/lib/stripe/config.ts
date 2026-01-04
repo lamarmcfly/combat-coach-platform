@@ -1,13 +1,35 @@
 import { SubscriptionTier } from '@prisma/client';
 
 /**
+ * Billing interval type
+ */
+export type BillingInterval = 'monthly' | 'annual';
+
+/**
+ * Annual discount percentage (30% off)
+ */
+export const ANNUAL_DISCOUNT_PERCENT = 30;
+
+/**
+ * Free trial configuration
+ */
+export const TRIAL_CONFIG = {
+  durationDays: 14, // 14-day free trial
+  eligibleTiers: [SubscriptionTier.BASIC, SubscriptionTier.PRO, SubscriptionTier.ELITE],
+  requirePaymentMethod: true, // Require card upfront
+  reminderDays: [3, 1], // Send reminders 3 days and 1 day before trial ends
+} as const;
+
+/**
  * Subscription tier pricing and features configuration
  */
 export const TIER_CONFIG = {
   [SubscriptionTier.FREE]: {
     name: 'Free',
     price: 0,
+    annualPrice: 0,
     stripePriceId: null,
+    stripeAnnualPriceId: null,
     features: {
       coursesPerMonth: 0,
       liveSessionCreditsPerMonth: 0,
@@ -24,7 +46,9 @@ export const TIER_CONFIG = {
   [SubscriptionTier.BASIC]: {
     name: 'Basic',
     price: 29,
+    annualPrice: 244, // $29 * 12 * 0.70 = $243.60 rounded to $244 (~30% savings)
     stripePriceId: process.env.STRIPE_BASIC_PRICE_ID || 'price_basic_placeholder',
+    stripeAnnualPriceId: process.env.STRIPE_BASIC_ANNUAL_PRICE_ID || 'price_basic_annual_placeholder',
     features: {
       coursesPerMonth: 2,
       liveSessionCreditsPerMonth: 0,
@@ -42,7 +66,9 @@ export const TIER_CONFIG = {
   [SubscriptionTier.PRO]: {
     name: 'Pro',
     price: 79,
+    annualPrice: 664, // $79 * 12 * 0.70 = $663.60 rounded to $664 (~30% savings)
     stripePriceId: process.env.STRIPE_PRO_PRICE_ID || 'price_pro_placeholder',
+    stripeAnnualPriceId: process.env.STRIPE_PRO_ANNUAL_PRICE_ID || 'price_pro_annual_placeholder',
     features: {
       coursesPerMonth: -1, // unlimited
       liveSessionCreditsPerMonth: 2,
@@ -62,7 +88,9 @@ export const TIER_CONFIG = {
   [SubscriptionTier.ELITE]: {
     name: 'Elite',
     price: 199,
+    annualPrice: 1672, // $199 * 12 * 0.70 = $1671.60 rounded to $1672 (~30% savings)
     stripePriceId: process.env.STRIPE_ELITE_PRICE_ID || 'price_elite_placeholder',
+    stripeAnnualPriceId: process.env.STRIPE_ELITE_ANNUAL_PRICE_ID || 'price_elite_annual_placeholder',
     features: {
       coursesPerMonth: -1, // unlimited
       liveSessionCreditsPerMonth: -1, // unlimited
@@ -81,6 +109,23 @@ export const TIER_CONFIG = {
     ],
   },
 } as const;
+
+/**
+ * Get price ID based on billing interval
+ */
+export function getPriceId(tier: SubscriptionTier, interval: BillingInterval): string | null {
+  const config = TIER_CONFIG[tier];
+  return interval === 'annual' ? config.stripeAnnualPriceId : config.stripePriceId;
+}
+
+/**
+ * Calculate annual savings
+ */
+export function getAnnualSavings(tier: SubscriptionTier): number {
+  const config = TIER_CONFIG[tier];
+  const monthlyTotal = config.price * 12;
+  return monthlyTotal - config.annualPrice;
+}
 
 /**
  * Credit pack configurations

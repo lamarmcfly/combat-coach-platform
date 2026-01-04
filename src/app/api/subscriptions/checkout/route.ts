@@ -4,8 +4,9 @@ import { Session } from 'next-auth';
 import { authOptions } from '@/lib/auth/options';
 import { prisma } from '@/db/client';
 import { getOrCreateCustomer, createSubscriptionCheckout } from '@/lib/stripe/client';
-import { TIER_CONFIG } from '@/lib/stripe/config';
+import { getPriceId, BillingInterval } from '@/lib/stripe/config';
 import { SubscriptionTier } from '@prisma/client';
+import { validateRequest, checkoutSchema } from '@/lib/validation';
 
 // Force dynamic rendering to prevent build-time errors
 export const dynamic = 'force-dynamic';
@@ -18,15 +19,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { tier } = await req.json();
-
-    if (!tier || !Object.values(SubscriptionTier).includes(tier)) {
-      return NextResponse.json({ error: 'Invalid tier' }, { status: 400 });
+    // Validate request body with Zod
+    const validation = await validateRequest(req, checkoutSchema);
+    if (!validation.success) {
+      return validation.error;
     }
 
-    if (tier === SubscriptionTier.FREE) {
-      return NextResponse.json({ error: 'Cannot checkout for free tier' }, { status: 400 });
-    }
+    const { tier, billingInterval } = validation.data;
 
     const user = await prisma.user.findUnique({
       where: { id: session.user.id },
@@ -51,12 +50,12 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    const tierConfig = TIER_CONFIG[tier as SubscriptionTier];
-    const priceId = tierConfig.stripePriceId;
+    // Get the appropriate price ID based on billing interval
+    const priceId = getPriceId(tier as SubscriptionTier, billingInterval as BillingInterval);
 
     if (!priceId) {
       return NextResponse.json(
-        { error: `No price configured for tier: ${tier}` },
+        { error: `No price configured for tier: ${tier} with ${billingInterval} billing` },
         { status: 500 }
       );
     }
@@ -69,6 +68,7 @@ export async function POST(req: NextRequest) {
       cancelUrl: `${process.env.NEXTAUTH_URL}/pricing?canceled=true`,
       userId: user.id,
       tier,
+      billingInterval,
     });
 
     return NextResponse.json({ url: checkoutSession.url });

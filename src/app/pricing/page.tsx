@@ -2,10 +2,10 @@ import { getServerSession } from 'next-auth/next';
 import { Session } from 'next-auth';
 import { authOptions } from '@/lib/auth/options';
 import { prisma } from '@/db/client';
-import { TIER_CONFIG } from '@/lib/stripe/config';
+import { TIER_CONFIG, ANNUAL_DISCOUNT_PERCENT } from '@/lib/stripe/config';
 import { SubscriptionTier } from '@prisma/client';
-import { PricingCard } from '@/components/pricing/PricingCard';
 import { PageContainer } from '@/components/layout/PageContainer';
+import { PricingPageClient } from '@/components/pricing/PricingPageClient';
 
 export const metadata = {
   title: 'Pricing - Combat Coach Platform',
@@ -37,6 +37,23 @@ export default async function PricingPage() {
     SubscriptionTier.ELITE,
   ];
 
+  // Prepare tier data for client component
+  const tierData = tiers.map((tier) => {
+    const config = TIER_CONFIG[tier];
+    return {
+      tier,
+      name: config.name,
+      price: config.price,
+      annualPrice: config.annualPrice,
+      features: config.features,
+      benefits: config.benefits,
+      popular: 'popular' in config ? config.popular : false,
+      isCurrent: tier === currentTier,
+      isUpgrade: tier !== currentTier && compareTierOrder(tier, currentTier) > 0,
+      isDowngrade: tier !== currentTier && compareTierOrder(tier, currentTier) < 0,
+    };
+  });
+
   return (
     <PageContainer>
       <div className="max-w-7xl mx-auto px-4 py-16">
@@ -45,37 +62,18 @@ export default async function PricingPage() {
           <h1 className="text-4xl md:text-5xl font-bold mb-4">
             Choose Your Training Plan
           </h1>
-          <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+          <p className="text-xl text-gray-600 dark:text-gray-300 max-w-2xl mx-auto">
             From beginner to elite athlete, we have the perfect plan to accelerate your combat sports journey
           </p>
         </div>
 
-        {/* Pricing Cards */}
-        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8 mb-16">
-          {tiers.map((tier) => {
-            const config = TIER_CONFIG[tier];
-            const isCurrent = tier === currentTier;
-            const isUpgrade = !isCurrent && compareTierOrder(tier, currentTier) > 0;
-            const isDowngrade = !isCurrent && compareTierOrder(tier, currentTier) < 0;
-
-            return (
-              <PricingCard
-                key={tier}
-                tier={tier}
-                name={config.name}
-                price={config.price}
-                features={config.features}
-                benefits={config.benefits}
-                popular={'popular' in config ? config.popular : false}
-                isCurrent={isCurrent}
-                isUpgrade={isUpgrade}
-                isDowngrade={isDowngrade}
-                cancelAtPeriodEnd={cancelAtPeriodEnd}
-                isAuthenticated={!!session}
-              />
-            );
-          })}
-        </div>
+        {/* Client component with billing toggle and cards */}
+        <PricingPageClient
+          tierData={tierData}
+          cancelAtPeriodEnd={cancelAtPeriodEnd}
+          isAuthenticated={!!session}
+          annualDiscountPercent={ANNUAL_DISCOUNT_PERCENT}
+        />
 
         {/* Feature Comparison Table */}
         <div className="bg-white rounded-lg shadow-lg p-8">

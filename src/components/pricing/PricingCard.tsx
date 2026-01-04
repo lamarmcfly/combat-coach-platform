@@ -4,11 +4,13 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { SubscriptionTier } from '@prisma/client';
 import { useToast } from '@/contexts/ToastContext';
+import { BillingInterval, ANNUAL_DISCOUNT_PERCENT } from '@/lib/stripe/config';
 
 interface PricingCardProps {
   tier: SubscriptionTier;
   name: string;
   price: number;
+  annualPrice: number;
   features: any;
   benefits: readonly string[];
   popular?: boolean;
@@ -17,12 +19,14 @@ interface PricingCardProps {
   isDowngrade: boolean;
   cancelAtPeriodEnd: boolean;
   isAuthenticated: boolean;
+  billingInterval: BillingInterval;
 }
 
 export function PricingCard({
   tier,
   name,
   price,
+  annualPrice,
   benefits,
   popular,
   isCurrent,
@@ -30,10 +34,16 @@ export function PricingCard({
   isDowngrade,
   cancelAtPeriodEnd,
   isAuthenticated,
+  billingInterval,
 }: PricingCardProps) {
   const router = useRouter();
   const { error: showError } = useToast();
   const [loading, setLoading] = useState(false);
+
+  const isAnnual = billingInterval === 'annual';
+  const displayPrice = isAnnual ? annualPrice : price;
+  const monthlyEquivalent = isAnnual ? Math.round(annualPrice / 12) : price;
+  const savings = isAnnual ? (price * 12) - annualPrice : 0;
 
   const handleSubscribe = async () => {
     if (!isAuthenticated) {
@@ -53,7 +63,7 @@ export function PricingCard({
       const response = await fetch('/api/subscriptions/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tier }),
+        body: JSON.stringify({ tier, billingInterval }),
       });
 
       const data = await response.json();
@@ -130,8 +140,27 @@ export function PricingCard({
 
       {/* Price */}
       <div className="mb-6">
-        <span className="text-4xl font-bold">${price}</span>
-        {price > 0 && <span className="text-gray-600">/month</span>}
+        {isAnnual && price > 0 ? (
+          <>
+            <div className="flex items-baseline gap-2">
+              <span className="text-4xl font-bold">${monthlyEquivalent}</span>
+              <span className="text-gray-600">/month</span>
+            </div>
+            <div className="text-sm text-gray-500 mt-1">
+              ${displayPrice}/year (billed annually)
+            </div>
+            {savings > 0 && (
+              <div className="text-sm text-green-600 font-semibold mt-1">
+                Save ${savings}/year ({ANNUAL_DISCOUNT_PERCENT}% off)
+              </div>
+            )}
+          </>
+        ) : (
+          <>
+            <span className="text-4xl font-bold">${price}</span>
+            {price > 0 && <span className="text-gray-600">/month</span>}
+          </>
+        )}
       </div>
 
       {/* Benefits List */}

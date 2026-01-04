@@ -95,6 +95,11 @@ model User {
   connectedCalendars  ConnectedCalendar[]
   calendarSubscription CalendarSubscription?
   notificationPreferences NotificationPreferences?
+  courseReviews       CourseReview[]
+  pushSubscriptions      PushSubscription[]
+  badges                 UserBadge[]
+  certificates           Certificate[]
+  passwordResetTokens    PasswordResetToken[]
 }
 
 model CoachProfile {
@@ -182,12 +187,34 @@ model Course {
   trainingSchedules TrainingSchedule[]
   coachingRequests  CoachingRequest[]
   goals             Goal[]
+  reviews           CourseReview[]
+  certificates      Certificate[]
 }
 
 enum CourseStatus {
   DRAFT
   PUBLISHED
   ARCHIVED
+}
+
+model CourseReview {
+  id        String   @id @default(cuid())
+  courseId  String
+  userId    String
+  rating    Int      // 1-5 stars
+  title     String?
+  content   String?
+  helpful   Int      @default(0) // Count of "helpful" votes
+  verified  Boolean  @default(false) // Verified purchase
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([courseId, userId]) // One review per user per course
+  @@index([courseId])
+  @@index([userId])
 }
 
 model Lesson {
@@ -250,8 +277,9 @@ model CoursePurchase {
   purchasedAt      DateTime       @default(now())
   createdAt        DateTime       @default(now())
 
-  user   User   @relation(fields: [userId], references: [id])
-  course Course @relation(fields: [courseId], references: [id])
+  user        User         @relation(fields: [userId], references: [id])
+  course      Course       @relation(fields: [courseId], references: [id])
+  certificate Certificate?
 
   @@unique([userId, courseId])
 }
@@ -1147,6 +1175,136 @@ model NotificationPreferences {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
+// Push notification subscriptions for Web Push API
+model PushSubscription {
+  id          String   @id @default(cuid())
+  userId      String
+  endpoint    String   @unique
+  p256dh      String   // Public key for encryption
+  auth        String   // Auth secret
+  userAgent   String?  // Browser/device info
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+// ============================================
+// Gamification - Badges & Achievements
+// ============================================
+
+enum BadgeCategory {
+  STREAK           // Training streak achievements
+  COURSES          // Course completion achievements
+  SESSIONS         // Live session achievements
+  COMMUNITY        // Community engagement achievements
+  GOALS            // Goal achievement badges
+  SPECIAL          // Special/limited edition badges
+}
+
+enum BadgeRarity {
+  COMMON
+  UNCOMMON
+  RARE
+  EPIC
+  LEGENDARY
+}
+
+model Badge {
+  id          String        @id @default(cuid())
+  slug        String        @unique
+  name        String
+  description String
+  iconUrl     String?
+  category    BadgeCategory
+  rarity      BadgeRarity   @default(COMMON)
+  points      Int           @default(10) // Points awarded for earning this badge
+  requirement String?       // Human-readable requirement description
+  isActive    Boolean       @default(true)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  userBadges  UserBadge[]
+
+  @@index([category])
+  @@index([isActive])
+}
+
+model UserBadge {
+  id        String   @id @default(cuid())
+  userId    String
+  badgeId   String
+  earnedAt  DateTime @default(now())
+  progress  Int?     // Optional progress tracking (0-100)
+  metadata  Json?    // Additional context about how badge was earned
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  badge Badge @relation(fields: [badgeId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, badgeId])
+  @@index([userId])
+  @@index([badgeId])
+}
+
+// ============================================
+// Course Completion Certificates
+// ============================================
+
+model Certificate {
+  id                String   @id @default(cuid())
+  userId            String
+  courseId          String
+  coursePurchaseId  String   @unique
+
+  // Certificate details
+  certificateNumber String   @unique // Unique certificate ID for verification
+  recipientName     String            // Name as displayed on certificate
+  courseName        String            // Snapshot of course name at time of completion
+  coachName         String            // Snapshot of coach name
+  completionDate    DateTime
+
+  // Certificate customization
+  templateId        String?  // Optional custom template
+  signature         String?  // Coach signature URL
+
+  // Verification
+  verificationUrl   String   @unique  // Public URL for verification
+  isRevoked         Boolean  @default(false)
+  revokedAt         DateTime?
+  revokedReason     String?
+
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  user           User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  course         Course         @relation(fields: [courseId], references: [id])
+  coursePurchase CoursePurchase @relation(fields: [coursePurchaseId], references: [id])
+
+  @@index([userId])
+  @@index([courseId])
+  @@index([certificateNumber])
+}
+
+// ============================================
+// Password Reset Tokens
+// ============================================
+
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([token])
+  @@index([userId])
+}
+
 // ============================================
 // Admin Content Management System (CMS)
 // ============================================
@@ -1289,4 +1447,172 @@ model PlatformSettings {
   updatedAt     DateTime  @updatedAt
 
   @@index([category])
+}
+
+// ============================================
+// Real-Time Chat System
+// ============================================
+
+enum ConversationType {
+  DIRECT           // 1-on-1 between users
+  COACHING         // Athlete-coach conversation
+  GROUP            // Group chat (for future)
+  SUPPORT          // Support ticket conversation
+}
+
+enum MessageStatus {
+  SENT
+  DELIVERED
+  READ
+}
+
+model Conversation {
+  id           String           @id @default(cuid())
+  type         ConversationType @default(DIRECT)
+  title        String?          // For group chats
+  isArchived   Boolean          @default(false)
+  lastMessageAt DateTime?
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+
+  participants ConversationParticipant[]
+  messages     Message[]
+
+  @@index([type])
+  @@index([lastMessageAt])
+}
+
+model ConversationParticipant {
+  id               String    @id @default(cuid())
+  conversationId   String
+  userId           String
+  lastReadAt       DateTime?
+  isMuted          Boolean   @default(false)
+  isAdmin          Boolean   @default(false) // For group chats
+  joinedAt         DateTime  @default(now())
+  leftAt           DateTime?
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@unique([conversationId, userId])
+  @@index([userId])
+  @@index([conversationId])
+}
+
+model Message {
+  id              String        @id @default(cuid())
+  conversationId  String
+  senderId        String        // User who sent the message
+  content         String
+  status          MessageStatus @default(SENT)
+  isEdited        Boolean       @default(false)
+  editedAt        DateTime?
+  isDeleted       Boolean       @default(false)
+  deletedAt       DateTime?
+  replyToId       String?       // For threading/replies
+  attachments     Json?         // Array of attachment URLs
+  metadata        Json?         // Additional data (reactions, etc.)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  replyTo      Message?     @relation("MessageReplies", fields: [replyToId], references: [id], onDelete: SetNull)
+  replies      Message[]    @relation("MessageReplies")
+
+  @@index([conversationId, createdAt])
+  @@index([senderId])
+  @@index([replyToId])
+}
+
+// For real-time presence
+model UserPresence {
+  id           String    @id @default(cuid())
+  userId       String    @unique
+  isOnline     Boolean   @default(false)
+  lastSeenAt   DateTime  @default(now())
+  currentPage  String?   // What page they're currently viewing
+
+  @@index([isOnline])
+  @@index([lastSeenAt])
+}
+
+// ============================================
+// Social Features - Follows & Activity Feed
+// ============================================
+
+model Follow {
+  id          String   @id @default(cuid())
+  followerId  String   // User who is following
+  followingId String   // User being followed
+  createdAt   DateTime @default(now())
+
+  @@unique([followerId, followingId])
+  @@index([followerId])
+  @@index([followingId])
+}
+
+enum ActivityType {
+  COURSE_COMPLETED     // User completed a course
+  BADGE_EARNED         // User earned a badge
+  GOAL_ACHIEVED        // User achieved a goal
+  FIGHT_LOGGED         // User logged a fight
+  REVIEW_POSTED        // User posted a review
+  STARTED_FOLLOWING    // User followed someone
+  COURSE_ENROLLED      // User enrolled in a course
+  SESSION_ATTENDED     // User attended a live session
+  STREAK_MILESTONE     // User hit a streak milestone (7, 30, 100 days)
+}
+
+model ActivityFeedItem {
+  id           String       @id @default(cuid())
+  userId       String       // User who performed the action
+  type         ActivityType
+  isPublic     Boolean      @default(true)
+
+  // Context data
+  title        String       // Display title
+  description  String?      // Optional description
+  imageUrl     String?      // Optional image
+  linkUrl      String?      // Link to related content
+
+  // Related entities (optional, for rich context)
+  courseId     String?
+  badgeId      String?
+  goalId       String?
+  fightId      String?
+  targetUserId String?      // For follows
+
+  // Engagement
+  likesCount   Int          @default(0)
+  commentsCount Int         @default(0)
+
+  createdAt    DateTime     @default(now())
+
+  @@index([userId, createdAt])
+  @@index([isPublic, createdAt])
+  @@index([type])
+}
+
+model ActivityLike {
+  id         String   @id @default(cuid())
+  activityId String
+  userId     String
+  createdAt  DateTime @default(now())
+
+  @@unique([activityId, userId])
+  @@index([activityId])
+  @@index([userId])
+}
+
+model ActivityComment {
+  id         String   @id @default(cuid())
+  activityId String
+  userId     String
+  content    String
+  isDeleted  Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([activityId, createdAt])
+  @@index([userId])
 }
