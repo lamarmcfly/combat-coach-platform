@@ -1,0 +1,80 @@
+name: Phase 3 Consent Safety
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/phase3-consent-safety.yml'
+      - 'db/**'
+      - 'e2e/**'
+      - 'next.config.ts'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'playwright.config.ts'
+      - 'prisma.config.ts'
+      - 'src/**'
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/phase3-consent-safety.yml'
+      - 'db/**'
+      - 'e2e/**'
+      - 'next.config.ts'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'playwright.config.ts'
+      - 'prisma.config.ts'
+      - 'src/**'
+
+jobs:
+  verify-consent-flow:
+    name: Verify Consent & Safety Flow
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: corner_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d corner_ci"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/corner_ci?schema=public
+      NEXTAUTH_SECRET: ci-nextauth-secret-not-for-production
+      NEXTAUTH_URL: http://127.0.0.1:3000
+      ALLOW_DUMMY_PAYMENTS: 'true'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Sync database schema
+        run: npx prisma db push
+
+      - name: Type-check
+        run: npx tsc --noEmit
+
+      - name: Run consent-related unit tests
+        run: npm run test:run -- src/__tests__/validation.test.ts src/__tests__/csrf.test.ts src/__tests__/session-checkout-flow.test.tsx
+
+      - name: Install Playwright browser
+        run: npx playwright install --with-deps chromium
+
+      - name: Run consent e2e spec
+        run: npm run test:e2e -- e2e/session-consent-checkout.spec.ts
