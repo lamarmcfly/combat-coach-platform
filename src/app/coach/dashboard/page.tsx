@@ -111,6 +111,17 @@ export default async function CoachDashboardPage() {
     );
   }
 
+  // Redirect newly approved coaches who haven't completed setup
+  // (no tagline and no short bio means they haven't gone through the wizard)
+  const needsSetup =
+    coachProfile.status === CoachStatus.APPROVED &&
+    !coachProfile.shortBio &&
+    !coachProfile.tagline;
+
+  if (needsSetup) {
+    redirect("/coach/setup");
+  }
+
   const awaitingApproval = coachProfile.status !== CoachStatus.APPROVED;
 
   if (!courseSummaries.length) {
@@ -201,20 +212,18 @@ export default async function CoachDashboardPage() {
             <p className="font-display text-2xl text-copy group-hover:text-accent transition-colors">Requests</p>
             <p className="text-xs text-copy-muted mt-1">Review submissions →</p>
           </Link>
-          <div className="rounded-xl border border-[#2a2b30] bg-[#151518] p-4">
+          <Link href="/coach/invite" className="rounded-xl border border-[#2a2b30] bg-[#151518] p-4 hover:border-accent/50 transition-colors group">
             <div className="flex items-center gap-3 mb-2">
               <div className="w-8 h-8 rounded-full bg-orange-900/50 flex items-center justify-center">
                 <svg className="w-4 h-4 text-orange-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
                 </svg>
               </div>
-              <p className="text-xs uppercase tracking-[0.2em] text-copy-muted">Content</p>
+              <p className="text-xs uppercase tracking-[0.2em] text-copy-muted">Invite</p>
             </div>
-            <p className="font-display text-2xl text-copy">{courseSummaries.length + sessionSummaries.length}</p>
-            <p className="text-xs text-copy-muted mt-1">
-              {courseSummaries.filter(c => c.status === 'published').length} courses, {sessionSummaries.filter(s => new Date(s.startTime) > new Date()).length} upcoming
-            </p>
-          </div>
+            <p className="font-display text-2xl text-copy group-hover:text-accent transition-colors">Add Athletes</p>
+            <p className="text-xs text-copy-muted mt-1">Invite your clients →</p>
+          </Link>
         </section>
 
         <section className="grid gap-6 lg:grid-cols-2">

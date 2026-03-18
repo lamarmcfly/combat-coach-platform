@@ -11,7 +11,7 @@ const PROTECTED_PREFIXES = ['/my', '/coach', '/admin', '/onboarding'];
 const ADMIN_PREFIXES = ['/admin'];
 
 // Routes that require coach role
-const COACH_PREFIXES = ['/coach/dashboard', '/coach/clients', '/coach/earnings', '/coach/coaching', '/coach/courses'];
+const COACH_PREFIXES = ['/coach/dashboard', '/coach/clients', '/coach/earnings', '/coach/coaching', '/coach/courses', '/coach/setup', '/coach/invite'];
 
 // Security headers applied to all responses
 const SECURITY_HEADERS: Record<string, string> = {
