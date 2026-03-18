@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { PageContainer } from "@/components/layout/PageContainer";
 import { VideoPlayer } from "@/components/video/VideoPlayer";
@@ -6,6 +7,21 @@ import { CourseCard } from "@/components/cards/CourseCard";
 import { SessionCard } from "@/components/cards/SessionCard";
 import { PrimaryButton } from "@/components/buttons/PrimaryButton";
 import { getCoachByIdServer, getLiveSessions, getPublishedCourses } from "@/data/server/content";
+
+export async function generateMetadata({ params }: { params: { id: string } }): Promise<Metadata> {
+  const coach = await getCoachByIdServer(params.id);
+  if (!coach) return { title: "Coach Not Found" };
+
+  return {
+    title: `${coach.name} - Combat Coach`,
+    description: coach.bio || `${coach.name} - Professional combat sports coach at ${coach.gym}`,
+    openGraph: {
+      title: `${coach.name} - Combat Coach`,
+      description: coach.bio || `Professional combat sports coach at ${coach.gym}`,
+      type: "profile",
+    },
+  };
+}
 
 export default async function CoachProfilePage({ params }: { params: { id: string } }) {
   const coach = await getCoachByIdServer(params.id);

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db/client";
 import bcrypt from "bcryptjs";
+import { randomBytes } from "crypto";
 import { Role } from "@prisma/client";
 import { sendTemplatedEmail } from "@/lib/email/emailService";
 import { authRatelimit, checkRateLimit } from "@/lib/ratelimit";
@@ -56,16 +57,33 @@ export async function POST(request: NextRequest) {
     },
   });
 
-  // Send welcome email
+  // Generate email verification token (32 random hex bytes)
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://combatcoach.app';
+  const verificationToken = randomBytes(32).toString("hex");
+  const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+
+  await db.emailVerificationToken.create({
+    data: {
+      userId: user.id,
+      token: verificationToken,
+      expiresAt,
+    },
+  });
+
+  // Send verification email
+  const verifyUrl = `${baseUrl}/auth/verify-email?token=${verificationToken}`;
   try {
-    await sendTemplatedEmail(email, 'welcome', {
+    await sendTemplatedEmail(email, 'email_verification', {
       firstName: firstName || '',
-      dashboardUrl: `${baseUrl}/my/dashboard`,
+      verifyUrl,
     });
   } catch (emailError) {
-    console.error('Failed to send welcome email:', emailError);
+    console.error('Failed to send verification email:', emailError);
   }
 
-  return NextResponse.json({ success: true, userId: user.id });
+  return NextResponse.json({
+    success: true,
+    userId: user.id,
+    message: "Account created. Please check your email to verify your address.",
+  });
 }

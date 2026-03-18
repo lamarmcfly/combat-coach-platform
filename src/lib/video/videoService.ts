@@ -5,8 +5,9 @@ type VideoSource = {
 };
 
 export type VideoPlayerConfig = {
-  mode: "html5" | "embed";
+  mode: "html5" | "embed" | "mux";
   embedUrl?: string;
+  muxPlaybackId?: string;
   sources: VideoSource[];
   autoPlay?: boolean;
   muted?: boolean;
@@ -27,11 +28,10 @@ export function resolveVideoUrl(videoRef?: string) {
 
 function muxEmbed(videoRef: string, poster?: string): VideoPlayerConfig {
   const playbackId = videoRef.replace("mux://", "");
-  const embedUrl = `https://stream.mux.com/${playbackId}.m3u8`;
   return {
-    mode: "embed",
-    embedUrl,
-    sources: [{ src: embedUrl, type: "application/x-mpegURL", poster }],
+    mode: "mux",
+    muxPlaybackId: playbackId,
+    sources: [],
     autoPlay: true,
     muted: true,
     loop: true,

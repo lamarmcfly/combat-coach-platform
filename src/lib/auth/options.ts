@@ -22,10 +22,24 @@ export const authOptions = {
         }
         const user = await db.user.findUnique({
           where: { email: credentials.email },
+          select: {
+            id: true,
+            email: true,
+            firstName: true,
+            lastName: true,
+            role: true,
+            passwordHash: true,
+            emailVerified: true,
+          },
         });
         if (!user) return null;
         const matches = await compare(credentials.password, user.passwordHash);
         if (!matches) return null;
+
+        if (!user.emailVerified) {
+          throw new Error("Please verify your email before signing in.");
+        }
+
         return {
           id: user.id,
           email: user.email,

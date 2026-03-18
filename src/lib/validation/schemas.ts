@@ -57,6 +57,32 @@ export const updateSubscriptionSchema = z.object({
   prorate: z.boolean().default(true),
 });
 
+export const liveSessionCheckoutSchema = z
+  .object({
+    liveSessionId: z.string().min(1, 'Live session ID is required'),
+    useCredit: z.boolean().optional().default(false),
+    acceptedNoShowPolicy: z.boolean(),
+    acceptedSafetyWaiver: z.boolean(),
+    acceptedWaitlistAutoBilling: z.boolean(),
+  })
+  .superRefine((data, ctx) => {
+    if (!data.acceptedNoShowPolicy) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['acceptedNoShowPolicy'],
+        message: 'You must acknowledge the no-show policy to continue',
+      });
+    }
+
+    if (!data.acceptedSafetyWaiver) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['acceptedSafetyWaiver'],
+        message: 'You must acknowledge the training safety waiver to continue',
+      });
+    }
+  });
+
 // ============================================
 // Review Schemas
 // ============================================

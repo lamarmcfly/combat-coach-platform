@@ -94,20 +94,20 @@ export const strictRatelimit = hasUpstash
   : new MemoryRatelimit(3, 60000);
 
 /**
- * Get identifier for rate limiting (IP or user ID)
+ * Get identifier for rate limiting (IP or user ID).
+ * On Vercel, x-real-ip is set reliably by the platform.
+ * Falls back to x-forwarded-for only as a last resort.
  */
 export function getRateLimitIdentifier(req: NextRequest, userId?: string): string {
   if (userId) {
     return `user:${userId}`;
   }
 
-  // Try to get real IP from various headers
-  const forwarded = req.headers.get('x-forwarded-for');
+  // Prefer Vercel-set headers (not spoofable when behind Vercel's edge)
   const realIp = req.headers.get('x-real-ip');
-  const cfIp = req.headers.get('cf-connecting-ip');
+  const forwarded = req.headers.get('x-forwarded-for');
 
   const ip =
-    cfIp ||
     realIp ||
     (forwarded ? forwarded.split(',')[0].trim() : null) ||
     'unknown';
@@ -150,8 +150,24 @@ export async function checkRateLimit(
 
     return { success: true };
   } catch (error) {
-    // If rate limiting fails, allow the request but log the error
+    // For security-critical limiters (auth, strict), fail closed.
+    // For general API limiters, fail open but log.
+    const isSecurityCritical =
+      limiter === authRatelimit || limiter === strictRatelimit;
+
     console.error('Rate limit check failed:', error);
+
+    if (isSecurityCritical) {
+      return {
+        success: false,
+        response: NextResponse.json(
+          { error: 'Service temporarily unavailable', message: 'Please try again shortly' },
+          { status: 503 }
+        ),
+      };
+    }
+
+    // Non-critical: allow request but log for monitoring
     return { success: true };
   }
 }

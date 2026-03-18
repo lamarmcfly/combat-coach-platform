@@ -47,7 +47,7 @@ A full-stack marketplace connecting combat sports athletes with world-class coac
 - **Auth:** NextAuth.js with email/password
 - **Payments:** Stripe (subscriptions, one-time purchases)
 - **Styling:** Tailwind CSS
-- **Testing:** Vitest + Testing Library
+- **Testing:** Vitest + Testing Library + Playwright
 - **Error Tracking:** Sentry
 - **Deployment:** Vercel
 
@@ -198,6 +198,9 @@ npm run db:seed          # Seed sample data
 npm run test            # Run tests in watch mode
 npm run test:run        # Run tests once
 npm run test:coverage   # Generate coverage report
+npm run test:e2e        # Run Playwright end-to-end tests
+npm run test:e2e:headed # Run e2e tests with browser UI
+npm run test:e2e:ui     # Open Playwright UI mode
 ```
 
 ---
@@ -352,9 +355,15 @@ npm run test
 
 # Coverage report
 npm run test:coverage
+
+# Install Playwright browser (first time only)
+npx playwright install chromium
+
+# Run end-to-end tests
+npm run test:e2e
 ```
 
-Tests are located in `src/__tests__/` using Vitest and Testing Library.
+Unit tests are located in `src/__tests__/` using Vitest and Testing Library. End-to-end specs are located in `e2e/` using Playwright.
 
 ---
 

@@ -231,6 +231,7 @@ function AddMediaModal({
   onClose: () => void;
   onSave: () => void;
 }) {
+  const [uploadMode, setUploadMode] = useState<'url' | 'mux-url' | 'mux-direct'>('url');
   const [formData, setFormData] = useState({
     url: '',
     filename: '',
@@ -242,22 +243,73 @@ function AddMediaModal({
     folder: 'general',
   });
   const [saving, setSaving] = useState(false);
+  const [muxUploadUrl, setMuxUploadUrl] = useState<string | null>(null);
+  const [uploadProgress, setUploadProgress] = useState<string | null>(null);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setSaving(true);
 
     try {
-      await fetch('/api/admin/media', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...formData,
-          filename: formData.filename || formData.url.split('/').pop() || 'media',
-          originalName: formData.originalName || formData.filename || 'media',
-        }),
-      });
-      onSave();
+      if (uploadMode === 'mux-url') {
+        // Ingest video from URL via Mux
+        const res = await fetch('/api/admin/media/upload', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            mode: 'url',
+            url: formData.url,
+            filename: formData.filename || formData.url.split('/').pop() || 'mux-video',
+            folder: formData.folder,
+            alt: formData.alt,
+            caption: formData.caption,
+          }),
+        });
+
+        if (!res.ok) {
+          const data = await res.json();
+          alert(data.error || 'Upload failed');
+          return;
+        }
+
+        onSave();
+      } else if (uploadMode === 'mux-direct') {
+        // Get a direct upload URL from Mux
+        setUploadProgress('Getting upload URL...');
+        const res = await fetch('/api/admin/media/upload', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            mode: 'direct',
+            filename: formData.filename || 'mux-upload',
+            folder: formData.folder,
+            alt: formData.alt,
+            caption: formData.caption,
+          }),
+        });
+
+        if (!res.ok) {
+          const data = await res.json();
+          alert(data.error || 'Failed to get upload URL');
+          return;
+        }
+
+        const data = await res.json();
+        setMuxUploadUrl(data.uploadUrl);
+        setUploadProgress('Upload URL ready. Use the URL below to upload your video via PUT request.');
+      } else {
+        // Standard URL-based media creation
+        await fetch('/api/admin/media', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            ...formData,
+            filename: formData.filename || formData.url.split('/').pop() || 'media',
+            originalName: formData.originalName || formData.filename || 'media',
+          }),
+        });
+        onSave();
+      }
     } catch (error) {
       console.error('Failed to save:', error);
     } finally {
@@ -269,44 +321,79 @@ function AddMediaModal({
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
       <div className="bg-gray-900 border border-gray-800 rounded-lg w-full max-w-lg">
         <div className="p-6 border-b border-gray-800">
-          <h2 className="text-xl font-bold text-white">Add Media from URL</h2>
+          <h2 className="text-xl font-bold text-white">Add Media</h2>
           <p className="text-gray-400 text-sm mt-1">
-            Enter the URL of an image or video to add to your library
+            Add images via URL or upload videos to Mux
           </p>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-400 mb-1">
-              Media URL *
-            </label>
-            <input
-              type="url"
-              value={formData.url}
-              onChange={(e) => setFormData({ ...formData, url: e.target.value })}
-              className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-orange-500"
-              placeholder="https://example.com/image.jpg"
-              required
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-400 mb-1">
-              Media Type
-            </label>
-            <select
-              value={formData.mimeType}
-              onChange={(e) => setFormData({ ...formData, mimeType: e.target.value })}
-              className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-orange-500"
+        {/* Mode Tabs */}
+        <div className="flex border-b border-gray-800">
+          {[
+            { key: 'url' as const, label: 'From URL' },
+            { key: 'mux-url' as const, label: 'Mux (URL)' },
+            { key: 'mux-direct' as const, label: 'Mux (Upload)' },
+          ].map((tab) => (
+            <button
+              key={tab.key}
+              onClick={() => { setUploadMode(tab.key); setMuxUploadUrl(null); setUploadProgress(null); }}
+              className={`flex-1 py-3 text-sm font-medium transition-colors ${
+                uploadMode === tab.key
+                  ? 'text-orange-500 border-b-2 border-orange-500'
+                  : 'text-gray-400 hover:text-white'
+              }`}
             >
-              <option value="image/jpeg">Image (JPEG)</option>
-              <option value="image/png">Image (PNG)</option>
-              <option value="image/webp">Image (WebP)</option>
-              <option value="image/gif">Image (GIF)</option>
-              <option value="video/mp4">Video (MP4)</option>
-              <option value="video/webm">Video (WebM)</option>
-            </select>
-          </div>
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          {(uploadMode === 'url' || uploadMode === 'mux-url') && (
+            <div>
+              <label className="block text-sm font-medium text-gray-400 mb-1">
+                {uploadMode === 'mux-url' ? 'Video URL (for Mux ingestion) *' : 'Media URL *'}
+              </label>
+              <input
+                type="url"
+                value={formData.url}
+                onChange={(e) => setFormData({ ...formData, url: e.target.value })}
+                className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-orange-500"
+                placeholder={uploadMode === 'mux-url' ? 'https://example.com/video.mp4' : 'https://example.com/image.jpg'}
+                required
+              />
+            </div>
+          )}
+
+          {uploadMode === 'mux-direct' && muxUploadUrl && (
+            <div className="bg-gray-800 p-4 rounded-lg">
+              <p className="text-sm text-gray-400 mb-2">{uploadProgress}</p>
+              <code className="text-xs text-green-400 break-all">{muxUploadUrl}</code>
+              <p className="text-xs text-gray-500 mt-2">
+                Send a PUT request with your video file to this URL.
+              </p>
+            </div>
+          )}
+
+          {uploadMode === 'url' && (
+            <div>
+              <label className="block text-sm font-medium text-gray-400 mb-1">
+                Media Type
+              </label>
+              <select
+                value={formData.mimeType}
+                onChange={(e) => setFormData({ ...formData, mimeType: e.target.value })}
+                className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-orange-500"
+              >
+                <option value="image/jpeg">Image (JPEG)</option>
+                <option value="image/png">Image (PNG)</option>
+                <option value="image/webp">Image (WebP)</option>
+                <option value="image/gif">Image (GIF)</option>
+                <option value="video/mp4">Video (MP4)</option>
+                <option value="video/webm">Video (WebM)</option>
+              </select>
+            </div>
+          )}
 
           <div>
             <label className="block text-sm font-medium text-gray-400 mb-1">
@@ -334,7 +421,7 @@ function AddMediaModal({
               value={formData.alt}
               onChange={(e) => setFormData({ ...formData, alt: e.target.value })}
               className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-orange-500"
-              placeholder="Description of the image"
+              placeholder="Description of the media"
             />
           </div>
 
@@ -355,7 +442,7 @@ function AddMediaModal({
               Cancel
             </Button>
             <Button type="submit" disabled={saving} className="flex-1">
-              {saving ? 'Adding...' : 'Add Media'}
+              {saving ? 'Processing...' : uploadMode === 'mux-direct' ? 'Get Upload URL' : 'Add Media'}
             </Button>
           </div>
         </form>

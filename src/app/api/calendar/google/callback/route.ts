@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth/options';
 import { exchangeCodeForTokens, listCalendars } from '@/lib/calendar/googleCalendar';
 import { db } from '@/db/client';
+import { encrypt } from '@/lib/crypto/encryption';
 
 // Force dynamic rendering to prevent build-time errors
 export const dynamic = 'force-dynamic';
@@ -76,6 +77,12 @@ export async function GET(request: NextRequest) {
       console.error('Failed to list calendars:', e);
     }
 
+    // Encrypt tokens before storing at rest
+    const encryptedAccessToken = encrypt(tokens.accessToken);
+    const encryptedRefreshToken = tokens.refreshToken
+      ? encrypt(tokens.refreshToken)
+      : null;
+
     // Save or update connection
     await db.connectedCalendar.upsert({
       where: {
@@ -88,8 +95,8 @@ export async function GET(request: NextRequest) {
         userId: session.user.id,
         provider: 'GOOGLE',
         email: tokens.email,
-        accessToken: tokens.accessToken,
-        refreshToken: tokens.refreshToken,
+        accessToken: encryptedAccessToken,
+        refreshToken: encryptedRefreshToken,
         tokenExpiry: new Date(Date.now() + tokens.expiresIn * 1000),
         calendarId: primaryCalendarId,
         calendarName: primaryCalendarName,
@@ -97,8 +104,8 @@ export async function GET(request: NextRequest) {
       },
       update: {
         email: tokens.email,
-        accessToken: tokens.accessToken,
-        refreshToken: tokens.refreshToken || undefined,
+        accessToken: encryptedAccessToken,
+        refreshToken: encryptedRefreshToken || undefined,
         tokenExpiry: new Date(Date.now() + tokens.expiresIn * 1000),
         calendarId: primaryCalendarId,
         calendarName: primaryCalendarName,

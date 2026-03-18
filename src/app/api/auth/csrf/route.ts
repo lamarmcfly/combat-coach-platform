@@ -12,10 +12,10 @@ export async function GET(request: NextRequest) {
   const existingToken = request.cookies.get(CSRF_COOKIE_NAME)?.value;
 
   let token: string;
-  if (existingToken && validateCsrfToken(existingToken)) {
+  if (existingToken && await validateCsrfToken(existingToken)) {
     token = existingToken;
   } else {
-    token = generateCsrfToken();
+    token = await generateCsrfToken();
   }
 
   const response = NextResponse.json({ csrfToken: token });

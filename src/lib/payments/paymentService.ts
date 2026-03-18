@@ -8,6 +8,12 @@ type CheckoutResult = {
   checkoutId?: string;
 };
 
+type LiveSessionConsent = {
+  acceptedNoShowPolicy: boolean;
+  acceptedSafetyWaiver: boolean;
+  acceptedWaitlistAutoBilling: boolean;
+};
+
 const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY;
 const STRIPE_PUBLISHABLE = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? "pk_test_placeholder";
 const APP_URL = process.env.NEXTAUTH_URL ?? "http://localhost:3000";
@@ -90,14 +96,25 @@ export async function createCourseCheckoutSession(userId: string, courseId: stri
   };
 }
 
-export async function createLiveSessionCheckoutSession(userId: string, liveSessionId: string): Promise<CheckoutResult> {
+export async function createLiveSessionCheckoutSession(
+  userId: string,
+  liveSessionId: string,
+  consent?: LiveSessionConsent
+): Promise<CheckoutResult> {
   const sessionDetails = await resolveLiveSession(liveSessionId);
   if (stripe) {
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
       success_url: `${APP_URL}/sessions/${liveSessionId}?booking=success`,
       cancel_url: `${APP_URL}/sessions/${liveSessionId}?booking=cancelled`,
-      metadata: { userId, liveSessionId, type: "live" },
+      metadata: {
+        userId,
+        liveSessionId,
+        type: "live",
+        acceptedNoShowPolicy: String(consent?.acceptedNoShowPolicy ?? false),
+        acceptedSafetyWaiver: String(consent?.acceptedSafetyWaiver ?? false),
+        acceptedWaitlistAutoBilling: String(consent?.acceptedWaitlistAutoBilling ?? false),
+      },
       line_items: [
         {
           price_data: {

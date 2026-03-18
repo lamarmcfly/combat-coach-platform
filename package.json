@@ -10,12 +10,17 @@
     "test": "vitest",
     "test:run": "vitest run",
     "test:coverage": "vitest run --coverage",
+    "test:e2e": "playwright test",
+    "test:e2e:headed": "playwright test --headed",
+    "test:e2e:ui": "playwright test --ui",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "db:seed": "tsx db/seed.ts"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.11.1",
+    "@mux/mux-node": "^12.8.1",
+    "@mux/mux-player-react": "^3.10.2",
     "@prisma/client": "^6.19.0",
     "@sentry/nextjs": "^10.32.1",
     "@types/bcryptjs": "^2.4.6",
@@ -34,6 +39,7 @@
     "web-push": "^3.6.7"
   },
   "devDependencies": {
+    "@playwright/test": "^1.58.2",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.1",
     "@types/node": "^20",
@@ -52,8 +58,5 @@
     "tsx": "^4.20.6",
     "typescript": "^5",
     "vitest": "^4.0.16"
-  },
-  "prisma": {
-    "schema": "db/schema.prisma"
   }
 }

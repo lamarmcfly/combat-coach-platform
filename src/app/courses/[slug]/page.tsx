@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { PageContainer } from "@/components/layout/PageContainer";
 import { VideoPlayer } from "@/components/video/VideoPlayer";
@@ -7,6 +8,21 @@ import { CourseTabs } from "@/components/course/CourseTabs";
 import { getCurrentSession } from "@/lib/auth/session";
 import { userOwnsCourse } from "@/lib/auth/access";
 import { getCourseBySlugServer } from "@/data/server/content";
+
+export async function generateMetadata({ params }: { params: { slug: string } }): Promise<Metadata> {
+  const course = await getCourseBySlugServer(params.slug);
+  if (!course) return { title: "Course Not Found" };
+
+  return {
+    title: course.title,
+    description: course.shortDescription || `${course.title} - Combat sports course by ${course.coach.name}`,
+    openGraph: {
+      title: course.title,
+      description: course.shortDescription || `Combat sports course by ${course.coach.name}`,
+      type: "website",
+    },
+  };
+}
 
 export default async function CourseDetailPage({ params }: { params: { slug: string } }) {
   const course = await getCourseBySlugServer(params.slug);

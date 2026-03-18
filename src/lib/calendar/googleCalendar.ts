@@ -4,6 +4,7 @@
  */
 
 import { db } from '@/db/client';
+import { encrypt, decrypt } from '@/lib/crypto/encryption';
 
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
 const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
@@ -156,12 +157,15 @@ export async function getValidAccessToken(userId: string): Promise<string | null
     return null;
   }
 
+  // Decrypt stored tokens
+  const decryptedAccessToken = decrypt(connection.accessToken);
+
   // Check if token is expired (with 5 minute buffer)
   const now = new Date();
   const expiryBuffer = new Date(now.getTime() + 5 * 60 * 1000);
 
   if (connection.tokenExpiry && connection.tokenExpiry > expiryBuffer) {
-    return connection.accessToken;
+    return decryptedAccessToken;
   }
 
   // Token expired, try to refresh
@@ -177,13 +181,16 @@ export async function getValidAccessToken(userId: string): Promise<string | null
     return null;
   }
 
-  try {
-    const { accessToken, expiresIn } = await refreshAccessToken(connection.refreshToken);
+  const decryptedRefreshToken = decrypt(connection.refreshToken);
 
+  try {
+    const { accessToken, expiresIn } = await refreshAccessToken(decryptedRefreshToken);
+
+    // Encrypt the new access token before storing
     await db.connectedCalendar.update({
       where: { id: connection.id },
       data: {
-        accessToken,
+        accessToken: encrypt(accessToken),
         tokenExpiry: new Date(Date.now() + expiresIn * 1000),
         syncErrors: 0,
         lastSyncError: null,

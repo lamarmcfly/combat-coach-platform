@@ -65,6 +65,7 @@ enum CreditType {
 model User {
   id               String           @id @default(cuid())
   email            String           @unique
+  emailVerified    DateTime?
   passwordHash     String
   firstName        String?
   lastName         String?
@@ -100,6 +101,7 @@ model User {
   badges                 UserBadge[]
   certificates           Certificate[]
   passwordResetTokens    PasswordResetToken[]
+  emailVerificationTokens EmailVerificationToken[]
 }
 
 model CoachProfile {
@@ -225,6 +227,8 @@ model Lesson {
   orderIndex      Int
   durationSeconds Int?
   videoUrl        String
+  muxAssetId      String?
+  muxPlaybackId   String?
   isPreview       Boolean  @default(false)
   moduleName      String?
   createdAt       DateTime @default(now())
@@ -1419,6 +1423,8 @@ model MediaAsset {
   alt           String?   // Alt text
   caption       String?
   tags          String[]  // For organization/search
+  muxAssetId    String?
+  muxPlaybackId String?
   uploadedBy    String    // Admin user ID
   folder        String    @default("general") // Organization folder
   isPublic      Boolean   @default(true)
@@ -1615,4 +1621,44 @@ model ActivityComment {
 
   @@index([activityId, createdAt])
   @@index([userId])
+}
+
+// --- Production Readiness Models ---
+
+model WebhookEvent {
+  id          String   @id @default(cuid())
+  eventId     String   @unique
+  eventType   String
+  processedAt DateTime @default(now())
+
+  @@index([eventId])
+}
+
+model EmailVerificationToken {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([token])
+  @@index([userId])
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  userId     String?
+  action     String
+  resource   String
+  resourceId String?
+  metadata   Json?
+  ipAddress  String?
+  userAgent  String?
+  createdAt  DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@index([action, createdAt])
+  @@index([resourceId])
 }

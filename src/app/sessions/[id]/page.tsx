@@ -7,8 +7,13 @@ import { getCurrentSession } from "@/lib/auth/session";
 import { userBookedSession } from "@/lib/auth/access";
 import { getLiveSessionByIdServer } from "@/data/server/content";
 
-export default async function SessionDetailPage({ params }: { params: { id: string } }) {
-  const sessionRecord = await getLiveSessionByIdServer(params.id);
+type SessionDetailPageProps = {
+  params: Promise<{ id: string }> | { id: string };
+};
+
+export default async function SessionDetailPage({ params }: SessionDetailPageProps) {
+  const { id } = await Promise.resolve(params);
+  const sessionRecord = await getLiveSessionByIdServer(id);
   if (!sessionRecord) {
     notFound();
   }

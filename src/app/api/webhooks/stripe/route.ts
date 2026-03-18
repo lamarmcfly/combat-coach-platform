@@ -4,11 +4,25 @@ import { constructWebhookEvent } from '@/lib/stripe/client';
 import { prisma } from '@/db/client';
 import { SubscriptionStatus, SubscriptionTier } from '@prisma/client';
 import Stripe from 'stripe';
-import { TIER_CONFIG, getFeatureLimit } from '@/lib/stripe/config';
+import { TIER_CONFIG, CREDIT_PACKS, getFeatureLimit } from '@/lib/stripe/config';
 import { sendTemplatedEmail } from '@/lib/email/emailService';
+import { stripeLogger as log } from '@/lib/logger';
 
 // Force dynamic rendering to prevent build-time errors
 export const dynamic = 'force-dynamic';
+
+/**
+ * Resolve the correct tier from a Stripe price ID.
+ * Returns the tier if a match is found, or null otherwise.
+ */
+function resolveTierFromPriceId(priceId: string): SubscriptionTier | null {
+  for (const [tierKey, config] of Object.entries(TIER_CONFIG)) {
+    if (config.stripePriceId === priceId || config.stripeAnnualPriceId === priceId) {
+      return tierKey as SubscriptionTier;
+    }
+  }
+  return null;
+}
 
 export async function POST(req: NextRequest) {
   const body = await req.text();
@@ -24,14 +38,25 @@ export async function POST(req: NextRequest) {
   try {
     event = constructWebhookEvent(body, signature);
   } catch (err) {
-    console.error('Webhook signature verification failed:', err);
+    log.error('Webhook signature verification failed', err);
     return NextResponse.json(
       { error: `Webhook Error: ${err instanceof Error ? err.message : 'Unknown error'}` },
       { status: 400 }
     );
   }
 
-  console.log(`[Webhook] Received event: ${event.type}`);
+  log.info('Received webhook event', { eventType: event.type, eventId: event.id });
+
+  // --- Idempotency Check ---
+  // Prevent duplicate processing if Stripe retries the webhook
+  const existingEvent = await prisma.webhookEvent.findUnique({
+    where: { eventId: event.id },
+  });
+
+  if (existingEvent) {
+    log.info('Webhook event already processed, skipping', { eventId: event.id });
+    return NextResponse.json({ received: true });
+  }
 
   try {
     switch (event.type) {
@@ -60,12 +85,20 @@ export async function POST(req: NextRequest) {
         break;
 
       default:
-        console.log(`[Webhook] Unhandled event type: ${event.type}`);
+        log.debug('Unhandled event type', { eventType: event.type });
     }
+
+    // Record event as processed after successful handling
+    await prisma.webhookEvent.create({
+      data: {
+        eventId: event.id,
+        eventType: event.type,
+      },
+    });
 
     return NextResponse.json({ received: true });
   } catch (error) {
-    console.error(`[Webhook] Error processing ${event.type}:`, error);
+    log.error(`Error processing webhook event`, error, { eventType: event.type });
     return NextResponse.json(
       { error: 'Webhook processing failed' },
       { status: 500 }
@@ -76,153 +109,179 @@ export async function POST(req: NextRequest) {
 /**
  * Handle subscription creation
  */
-async function handleSubscriptionCreated(subscription: any) {
-  const userId = subscription.metadata.userId;
-  const tier = subscription.metadata.tier as SubscriptionTier;
+async function handleSubscriptionCreated(subscription: Stripe.Subscription) {
+  const metadata = subscription.metadata || {};
+  const userId = metadata.userId;
+  const metadataTier = metadata.tier as SubscriptionTier | undefined;
 
-  if (!userId || !tier) {
-    console.error('[Webhook] Missing userId or tier in subscription metadata');
+  if (!userId) {
+    log.error('Missing userId in subscription metadata', null, { subscriptionId: subscription.id });
     return;
   }
 
-  console.log(`[Webhook] Creating subscription for user ${userId}, tier: ${tier}`);
+  // Verify user exists
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+  if (!user) {
+    log.error('User not found for subscription', null, { userId, subscriptionId: subscription.id });
+    return;
+  }
+
+  // Verify tier: trust the price ID over metadata
+  const priceId = subscription.items.data[0]?.price?.id;
+  const verifiedTier = priceId ? resolveTierFromPriceId(priceId) : null;
+  const tier = verifiedTier ?? metadataTier;
+
+  if (!tier) {
+    log.error('Could not determine tier from price or metadata', null, {
+      subscriptionId: subscription.id,
+      priceId,
+      metadataTier,
+    });
+    return;
+  }
+
+  if (verifiedTier && metadataTier && verifiedTier !== metadataTier) {
+    log.warn('Tier mismatch: metadata says one tier but price resolves to another. Using price-based tier.', {
+      metadataTier,
+      verifiedTier,
+      priceId,
+    });
+  }
+
+  log.info('Creating subscription', { userId, tier });
 
   const monthlyCredits = getFeatureLimit(tier, 'liveSessionCreditsPerMonth');
 
-  await prisma.subscription.create({
-    data: {
-      userId,
-      tier,
-      status: subscription.status.toUpperCase() as SubscriptionStatus,
-      stripeSubscriptionId: subscription.id,
-      stripePriceId: subscription.items.data[0].price.id,
-      currentPeriodStart: new Date(subscription.current_period_start * 1000),
-      currentPeriodEnd: new Date(subscription.current_period_end * 1000),
-      monthlyCreditsRemaining: monthlyCredits === -1 ? 999999 : monthlyCredits,
-      monthlyCoursesUsed: 0,
-      trialStart: subscription.trial_start ? new Date(subscription.trial_start * 1000) : null,
-      trialEnd: subscription.trial_end ? new Date(subscription.trial_end * 1000) : null,
-    },
-  });
+  // Atomic transaction: create subscription + update user tier
+  await prisma.$transaction([
+    prisma.subscription.create({
+      data: {
+        userId,
+        tier,
+        status: subscription.status.toUpperCase() as SubscriptionStatus,
+        stripeSubscriptionId: subscription.id,
+        stripePriceId: priceId || '',
+        currentPeriodStart: new Date(((subscription as any).current_period_start ?? Math.floor(Date.now() / 1000)) * 1000),
+        currentPeriodEnd: new Date(((subscription as any).current_period_end ?? Math.floor(Date.now() / 1000)) * 1000),
+        monthlyCreditsRemaining: monthlyCredits === -1 ? 999999 : monthlyCredits,
+        monthlyCoursesUsed: 0,
+        trialStart: (subscription as any).trial_start ? new Date((subscription as any).trial_start * 1000) : null,
+        trialEnd: (subscription as any).trial_end ? new Date((subscription as any).trial_end * 1000) : null,
+      },
+    }),
+    prisma.user.update({
+      where: { id: userId },
+      data: { subscriptionTier: tier },
+    }),
+  ]);
 
-  // Update user's tier
-  await prisma.user.update({
-    where: { id: userId },
-    data: { subscriptionTier: tier },
-  });
-
-  console.log(`[Webhook] Subscription created successfully for user ${userId}`);
+  log.info('Subscription created successfully', { userId, tier });
 }
 
 /**
  * Handle subscription updates (upgrades, downgrades, renewals)
  */
-async function handleSubscriptionUpdated(subscription: any) {
+async function handleSubscriptionUpdated(subscription: Stripe.Subscription) {
   const stripeSubscriptionId = subscription.id;
 
-  console.log(`[Webhook] Updating subscription: ${stripeSubscriptionId}`);
+  log.info('Updating subscription', { stripeSubscriptionId });
 
   const existingSubscription = await prisma.subscription.findUnique({
     where: { stripeSubscriptionId },
   });
 
   if (!existingSubscription) {
-    console.log('[Webhook] Subscription not found locally, creating it');
+    log.info('Subscription not found locally, creating it', { stripeSubscriptionId });
     await handleSubscriptionCreated(subscription);
     return;
   }
 
-  // Determine tier from price ID
-  let tier = existingSubscription.tier;
-  const priceId = subscription.items.data[0].price.id;
-
-  // Match price ID to tier
-  for (const [tierKey, config] of Object.entries(TIER_CONFIG)) {
-    if (config.stripePriceId === priceId) {
-      tier = tierKey as SubscriptionTier;
-      break;
-    }
-  }
+  // Determine tier from price ID (authoritative source)
+  const priceId = subscription.items.data[0]?.price?.id;
+  const resolvedTier = priceId ? resolveTierFromPriceId(priceId) : null;
+  const tier = resolvedTier ?? existingSubscription.tier;
 
   const monthlyCredits = getFeatureLimit(tier, 'liveSessionCreditsPerMonth');
 
-  await prisma.subscription.update({
-    where: { stripeSubscriptionId },
-    data: {
-      tier,
-      status: subscription.status.toUpperCase() as SubscriptionStatus,
-      stripePriceId: priceId,
-      currentPeriodStart: new Date(subscription.current_period_start * 1000),
-      currentPeriodEnd: new Date(subscription.current_period_end * 1000),
-      cancelAtPeriodEnd: subscription.cancel_at_period_end,
-      canceledAt: subscription.canceled_at ? new Date(subscription.canceled_at * 1000) : null,
-      monthlyCreditsRemaining: monthlyCredits === -1 ? 999999 : monthlyCredits,
-    },
-  });
+  // Atomic transaction: update subscription + update user tier
+  await prisma.$transaction([
+    prisma.subscription.update({
+      where: { stripeSubscriptionId },
+      data: {
+        tier,
+        status: subscription.status.toUpperCase() as SubscriptionStatus,
+        stripePriceId: priceId || existingSubscription.stripePriceId,
+        currentPeriodStart: new Date(((subscription as any).current_period_start ?? Math.floor(Date.now() / 1000)) * 1000),
+        currentPeriodEnd: new Date(((subscription as any).current_period_end ?? Math.floor(Date.now() / 1000)) * 1000),
+        cancelAtPeriodEnd: subscription.cancel_at_period_end,
+        canceledAt: subscription.canceled_at ? new Date(subscription.canceled_at * 1000) : null,
+        monthlyCreditsRemaining: monthlyCredits === -1 ? 999999 : monthlyCredits,
+      },
+    }),
+    prisma.user.update({
+      where: { id: existingSubscription.userId },
+      data: { subscriptionTier: tier },
+    }),
+  ]);
 
-  // Update user's tier
-  await prisma.user.update({
-    where: { id: existingSubscription.userId },
-    data: { subscriptionTier: tier },
-  });
-
-  console.log(`[Webhook] Subscription updated: ${stripeSubscriptionId}, new tier: ${tier}`);
+  log.info('Subscription updated', { stripeSubscriptionId, tier });
 }
 
 /**
  * Handle subscription deletion/cancellation
  */
-async function handleSubscriptionDeleted(subscription: any) {
+async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
   const stripeSubscriptionId = subscription.id;
 
-  console.log(`[Webhook] Deleting subscription: ${stripeSubscriptionId}`);
+  log.info('Processing subscription deletion', { stripeSubscriptionId });
 
   const existingSubscription = await prisma.subscription.findUnique({
     where: { stripeSubscriptionId },
   });
 
   if (!existingSubscription) {
-    console.warn('[Webhook] Subscription not found locally');
+    log.warn('Subscription not found locally for deletion', { stripeSubscriptionId });
     return;
   }
 
-  // Mark subscription as canceled
-  await prisma.subscription.update({
-    where: { stripeSubscriptionId },
-    data: {
-      status: SubscriptionStatus.CANCELED,
-      canceledAt: new Date(),
-    },
-  });
+  // Atomic transaction: cancel subscription + downgrade user
+  await prisma.$transaction([
+    prisma.subscription.update({
+      where: { stripeSubscriptionId },
+      data: {
+        status: SubscriptionStatus.CANCELED,
+        canceledAt: new Date(),
+      },
+    }),
+    prisma.user.update({
+      where: { id: existingSubscription.userId },
+      data: { subscriptionTier: SubscriptionTier.FREE },
+    }),
+  ]);
 
-  // Downgrade user to FREE tier
-  await prisma.user.update({
-    where: { id: existingSubscription.userId },
-    data: { subscriptionTier: SubscriptionTier.FREE },
-  });
-
-  console.log(`[Webhook] Subscription canceled: ${stripeSubscriptionId}`);
+  log.info('Subscription canceled', { stripeSubscriptionId, userId: existingSubscription.userId });
 }
 
 /**
  * Handle successful invoice payment (renewal)
  */
-async function handleInvoicePaid(invoice: any) {
-  const subscriptionId = invoice.subscription as string;
+async function handleInvoicePaid(invoice: Stripe.Invoice) {
+  const sub = invoice.parent?.subscription_details?.subscription;
+  const subscriptionId = typeof sub === 'string' ? sub : sub?.id;
 
   if (!subscriptionId) {
-    console.log('[Webhook] Invoice not related to a subscription');
+    log.debug('Invoice not related to a subscription', { invoiceId: invoice.id });
     return;
   }
 
-  console.log(`[Webhook] Invoice paid for subscription: ${subscriptionId}`);
+  log.info('Invoice paid for subscription', { subscriptionId, invoiceId: invoice.id });
 
   const subscription = await prisma.subscription.findUnique({
     where: { stripeSubscriptionId: subscriptionId },
   });
 
   if (!subscription) {
-    console.warn('[Webhook] Subscription not found for invoice');
+    log.warn('Subscription not found for invoice', { subscriptionId });
     return;
   }
 
@@ -238,7 +297,7 @@ async function handleInvoicePaid(invoice: any) {
     },
   });
 
-  console.log(`[Webhook] Subscription renewed, credits reset: ${subscriptionId}`);
+  log.info('Subscription renewed, credits reset', { subscriptionId });
 
   // Send renewal confirmation email
   try {
@@ -261,24 +320,25 @@ async function handleInvoicePaid(invoice: any) {
           day: 'numeric',
         }),
       });
-      console.log(`[Webhook] Renewal email sent to ${user.email}`);
+      log.info('Renewal email sent', { email: user.email, subscriptionId });
     }
   } catch (emailError) {
-    console.error('[Webhook] Failed to send renewal email:', emailError);
+    log.error('Failed to send renewal email', emailError, { subscriptionId });
   }
 }
 
 /**
  * Handle failed invoice payment
  */
-async function handleInvoicePaymentFailed(invoice: any) {
-  const subscriptionId = invoice.subscription as string;
+async function handleInvoicePaymentFailed(invoice: Stripe.Invoice) {
+  const sub = invoice.parent?.subscription_details?.subscription;
+  const subscriptionId = typeof sub === 'string' ? sub : sub?.id;
 
   if (!subscriptionId) {
     return;
   }
 
-  console.log(`[Webhook] Invoice payment failed for subscription: ${subscriptionId}`);
+  log.warn('Invoice payment failed', { subscriptionId, invoiceId: invoice.id });
 
   const subscription = await prisma.subscription.findUnique({
     where: { stripeSubscriptionId: subscriptionId },
@@ -296,7 +356,7 @@ async function handleInvoicePaymentFailed(invoice: any) {
     },
   });
 
-  console.log(`[Webhook] Subscription marked as PAST_DUE: ${subscriptionId}`);
+  log.info('Subscription marked as PAST_DUE', { subscriptionId });
 
   // Send payment failure email with retry link
   try {
@@ -313,23 +373,23 @@ async function handleInvoicePaymentFailed(invoice: any) {
         tier: subscription.tier,
         updatePaymentUrl: `${baseUrl}/settings/billing`,
       });
-      console.log(`[Webhook] Payment failure email sent to ${user.email}`);
+      log.info('Payment failure email sent', { email: user.email, subscriptionId });
     }
   } catch (emailError) {
-    console.error('[Webhook] Failed to send payment failure email:', emailError);
+    log.error('Failed to send payment failure email', emailError, { subscriptionId });
   }
 }
 
 /**
  * Handle checkout session completion
  */
-async function handleCheckoutCompleted(session: any) {
-  console.log(`[Webhook] Checkout completed: ${session.id}`);
+async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
+  log.info('Checkout completed', { sessionId: session.id });
 
   const metadata = session.metadata;
 
   if (!metadata) {
-    console.log('[Webhook] No metadata in checkout session');
+    log.debug('No metadata in checkout session', { sessionId: session.id });
     return;
   }
 
@@ -339,7 +399,31 @@ async function handleCheckoutCompleted(session: any) {
     const packId = metadata.packId;
     const credits = parseInt(metadata.credits, 10);
 
-    console.log(`[Webhook] Credit pack purchased: ${packId} for user ${userId}`);
+    // Verify user exists
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, email: true, firstName: true },
+    });
+
+    if (!user) {
+      log.error('User not found for credit pack purchase', null, { userId, packId });
+      return;
+    }
+
+    // Verify credit amount matches known pack configuration
+    const knownPack = CREDIT_PACKS.find((p) => p.id === packId);
+    if (knownPack && knownPack.credits !== credits) {
+      log.error('Credit pack mismatch: metadata credits do not match pack config', null, {
+        packId,
+        metadataCredits: credits,
+        expectedCredits: knownPack.credits,
+      });
+      // Use the known pack credits (authoritative source)
+      // Fall through with corrected value
+    }
+    const verifiedCredits = knownPack ? knownPack.credits : credits;
+
+    log.info('Credit pack purchased', { packId, userId, credits: verifiedCredits });
 
     // Import CreditService dynamically to avoid circular dependencies
     const { CreditService } = await import('@/services/creditService');
@@ -347,32 +431,26 @@ async function handleCheckoutCompleted(session: any) {
     await CreditService.purchaseCreditPack({
       userId,
       packId,
-      credits,
+      credits: verifiedCredits,
       priceCents: session.amount_total || 0,
     });
 
-    console.log(`[Webhook] ${credits} credits added to user ${userId}`);
+    log.info('Credits added to user', { credits: verifiedCredits, userId });
 
     // Send credit pack purchase confirmation email
     try {
-      const user = await prisma.user.findUnique({
-        where: { id: userId },
-        select: { email: true, firstName: true },
-      });
-
-      if (user?.email) {
-        // Get updated credit balance
+      if (user.email) {
         const newBalance = await CreditService.getPackCreditBalance(userId);
 
         await sendTemplatedEmail(user.email, 'credit_pack_purchased', {
           firstName: user.firstName || '',
-          credits: credits.toString(),
+          credits: verifiedCredits.toString(),
           newBalance: newBalance.toString(),
         });
-        console.log(`[Webhook] Credit purchase email sent to ${user.email}`);
+        log.info('Credit purchase email sent', { email: user.email, credits: verifiedCredits, newBalance });
       }
     } catch (emailError) {
-      console.error('[Webhook] Failed to send credit purchase email:', emailError);
+      log.error('Failed to send credit purchase email', emailError, { userId, credits: verifiedCredits });
     }
   }
 }

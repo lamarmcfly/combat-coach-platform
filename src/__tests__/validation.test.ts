@@ -7,6 +7,7 @@ import {
   weightEntrySchema,
   passwordResetRequestSchema,
   passwordResetSchema,
+  liveSessionCheckoutSchema,
 } from '@/lib/validation/schemas';
 
 describe('Validation Schemas', () => {
@@ -196,6 +197,58 @@ describe('Validation Schemas', () => {
         password: 'weak',
       });
       expect(result.success).toBe(false);
+    });
+  });
+
+  describe('liveSessionCheckoutSchema', () => {
+    it('should accept valid consent payload', () => {
+      const result = liveSessionCheckoutSchema.safeParse({
+        liveSessionId: 'session_123',
+        useCredit: true,
+        acceptedNoShowPolicy: true,
+        acceptedSafetyWaiver: true,
+        acceptedWaitlistAutoBilling: false,
+      });
+      expect(result.success).toBe(true);
+    });
+
+    it('should default useCredit to false when omitted', () => {
+      const result = liveSessionCheckoutSchema.safeParse({
+        liveSessionId: 'session_123',
+        acceptedNoShowPolicy: true,
+        acceptedSafetyWaiver: true,
+        acceptedWaitlistAutoBilling: true,
+      });
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.useCredit).toBe(false);
+      }
+    });
+
+    it('should reject checkout when no-show policy is not acknowledged', () => {
+      const result = liveSessionCheckoutSchema.safeParse({
+        liveSessionId: 'session_123',
+        acceptedNoShowPolicy: false,
+        acceptedSafetyWaiver: true,
+        acceptedWaitlistAutoBilling: true,
+      });
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.error.issues.some((issue) => issue.path.includes('acceptedNoShowPolicy'))).toBe(true);
+      }
+    });
+
+    it('should reject checkout when safety waiver is not acknowledged', () => {
+      const result = liveSessionCheckoutSchema.safeParse({
+        liveSessionId: 'session_123',
+        acceptedNoShowPolicy: true,
+        acceptedSafetyWaiver: false,
+        acceptedWaitlistAutoBilling: true,
+      });
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.error.issues.some((issue) => issue.path.includes('acceptedSafetyWaiver'))).toBe(true);
+      }
     });
   });
 });

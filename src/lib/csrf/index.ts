@@ -1,20 +1,72 @@
 import { cookies } from 'next/headers';
-import { randomBytes, createHmac } from 'crypto';
 import { NextRequest, NextResponse } from 'next/server';
 
 const CSRF_COOKIE_NAME = 'csrf_token';
 const CSRF_HEADER_NAME = 'x-csrf-token';
-const SECRET = process.env.NEXTAUTH_SECRET || 'default-secret-change-me';
+const CSRF_TOKEN_MAX_AGE_MS = 24 * 60 * 60 * 1000;
+const encoder = new TextEncoder();
+
+// Security: Require NEXTAUTH_SECRET to be configured - no fallback allowed
+function getSecret(): string {
+  const secret = process.env.NEXTAUTH_SECRET;
+  if (!secret) {
+    throw new Error(
+      'NEXTAUTH_SECRET environment variable must be configured for CSRF protection. ' +
+      'Generate one with: openssl rand -base64 32'
+    );
+  }
+  return secret;
+}
+
+function getWebCrypto(): Crypto {
+  if (!globalThis.crypto?.subtle) {
+    throw new Error('Web Crypto API is required for CSRF protection.');
+  }
+  return globalThis.crypto;
+}
+
+function toHex(bytes: Uint8Array): string {
+  return Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('');
+}
+
+function timingSafeEqual(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+
+  let mismatch = 0;
+  for (let i = 0; i < a.length; i++) {
+    mismatch |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  }
+
+  return mismatch === 0;
+}
+
+async function signPayload(payload: string): Promise<string> {
+  const key = await getWebCrypto().subtle.importKey(
+    'raw',
+    encoder.encode(getSecret()),
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign']
+  );
+
+  const signature = await getWebCrypto().subtle.sign(
+    'HMAC',
+    key,
+    encoder.encode(payload)
+  );
+
+  return toHex(new Uint8Array(signature));
+}
 
 /**
  * Generate a CSRF token
  */
-export function generateCsrfToken(): string {
-  const randomValue = randomBytes(32).toString('hex');
+export async function generateCsrfToken(): Promise<string> {
+  const randomBytes = new Uint8Array(32);
+  getWebCrypto().getRandomValues(randomBytes);
+  const randomValue = toHex(randomBytes);
   const timestamp = Date.now().toString();
-  const signature = createHmac('sha256', SECRET)
-    .update(`${randomValue}:${timestamp}`)
-    .digest('hex');
+  const signature = await signPayload(`${randomValue}:${timestamp}`);
 
   return `${randomValue}:${timestamp}:${signature}`;
 }
@@ -22,39 +74,43 @@ export function generateCsrfToken(): string {
 /**
  * Validate a CSRF token
  */
-export function validateCsrfToken(token: string): boolean {
+export async function validateCsrfToken(token: string): Promise<boolean> {
   if (!token) return false;
 
   const parts = token.split(':');
   if (parts.length !== 3) return false;
 
   const [randomValue, timestamp, signature] = parts;
+  const parsedTimestamp = parseInt(timestamp, 10);
+  if (!Number.isFinite(parsedTimestamp)) return false;
 
   // Check token age (valid for 24 hours)
-  const tokenAge = Date.now() - parseInt(timestamp, 10);
-  if (tokenAge > 24 * 60 * 60 * 1000) return false;
+  const tokenAge = Date.now() - parsedTimestamp;
+  if (tokenAge < 0 || tokenAge > CSRF_TOKEN_MAX_AGE_MS) return false;
 
   // Verify signature
-  const expectedSignature = createHmac('sha256', SECRET)
-    .update(`${randomValue}:${timestamp}`)
-    .digest('hex');
+  const expectedSignature = await signPayload(`${randomValue}:${timestamp}`);
 
-  return signature === expectedSignature;
+  return timingSafeEqual(signature, expectedSignature);
 }
 
 /**
- * Get or create CSRF token from cookies
+ * Read the current CSRF token from cookies.
+ * Token generation and cookie persistence is handled by middleware.ts.
+ * If no valid token exists yet (e.g., first request), generates one for inline use
+ * but the middleware will persist it on the response.
  */
 export async function getCsrfToken(): Promise<string> {
   const cookieStore = await cookies();
-  let token = cookieStore.get(CSRF_COOKIE_NAME)?.value;
+  const token = cookieStore.get(CSRF_COOKIE_NAME)?.value;
 
-  if (!token || !validateCsrfToken(token)) {
-    token = generateCsrfToken();
-    // Note: Setting cookie should be done in the response, not here
+  if (token && await validateCsrfToken(token)) {
+    return token;
   }
 
-  return token;
+  // Fallback: generate a token for this request cycle.
+  // The middleware will set the cookie on the response.
+  return await generateCsrfToken();
 }
 
 /**
@@ -100,7 +156,7 @@ export async function validateCsrfRequest(request: NextRequest): Promise<{
     };
   }
 
-  if (!validateCsrfToken(cookieToken)) {
+  if (!await validateCsrfToken(cookieToken)) {
     return {
       valid: false,
       error: 'CSRF token invalid or expired',
