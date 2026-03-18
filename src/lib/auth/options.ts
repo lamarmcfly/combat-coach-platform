@@ -1,6 +1,7 @@
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import type { AdapterUser } from "next-auth/adapters";
 import Credentials from "next-auth/providers/credentials";
+import Google from "next-auth/providers/google";
 import { compare } from "bcryptjs";
 import { db } from "@/db/client";
 
@@ -10,6 +11,16 @@ export const authOptions = {
     strategy: "jwt" as const,
   },
   providers: [
+    // Google OAuth (optional — only active when env vars are set)
+    ...(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET
+      ? [
+          Google({
+            clientId: process.env.GOOGLE_CLIENT_ID,
+            clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+            allowDangerousEmailAccountLinking: true,
+          }),
+        ]
+      : []),
     Credentials({
       name: "Email/Password",
       credentials: {
@@ -54,6 +65,14 @@ export const authOptions = {
       if (user) {
         const adapterUser = user as AdapterUser & { role?: string };
         token.role = adapterUser.role ?? token.role;
+      }
+      // For OAuth users, fetch role from DB if not already set
+      if (token.sub && !token.role) {
+        const dbUser = await db.user.findUnique({
+          where: { id: token.sub },
+          select: { role: true },
+        });
+        token.role = dbUser?.role ?? "ATHLETE";
       }
       return token;
     },
