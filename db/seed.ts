@@ -29,6 +29,19 @@ async function seed() {
 
   const passwordHash = await bcrypt.hash("password123", 10);
 
+  // Create admin user (email verified so they can sign in immediately)
+  const admin = await prisma.user.create({
+    data: {
+      email: "admin@combatcoach.app",
+      passwordHash,
+      firstName: "Platform",
+      lastName: "Admin",
+      role: Role.ADMIN,
+      emailVerified: new Date(),
+    },
+  });
+  console.log("  Admin user: admin@combatcoach.app / password123");
+
   const athlete = await prisma.user.create({
     data: {
       email: "athlete@example.com",
@@ -36,6 +49,7 @@ async function seed() {
       firstName: "Sample",
       lastName: "Athlete",
       role: Role.ATHLETE,
+      emailVerified: new Date(),
     },
   });
 
@@ -46,6 +60,7 @@ async function seed() {
       firstName: "Lena",
       lastName: "Alvarez",
       role: Role.COACH,
+      emailVerified: new Date(),
     },
   });
 
