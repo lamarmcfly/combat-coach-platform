@@ -168,7 +168,7 @@ export default function ContentManagementPage() {
           href="/admin/content"
           className={`px-4 py-2 rounded-lg text-sm transition-colors ${
             !pageFilter
-              ? 'bg-orange-600 text-white'
+              ? 'bg-accent text-black'
               : 'bg-gray-800 text-gray-400 hover:text-white'
           }`}
         >
@@ -180,7 +180,7 @@ export default function ContentManagementPage() {
             href={`/admin/content?page=${page}`}
             className={`px-4 py-2 rounded-lg text-sm capitalize transition-colors ${
               pageFilter === page
-                ? 'bg-orange-600 text-white'
+                ? 'bg-accent text-black'
                 : 'bg-gray-800 text-gray-400 hover:text-white'
             }`}
           >
@@ -195,7 +195,7 @@ export default function ContentManagementPage() {
           onClick={() => setActiveTab('content')}
           className={`pb-3 px-1 font-medium transition-colors ${
             activeTab === 'content'
-              ? 'text-orange-500 border-b-2 border-orange-500'
+              ? 'text-accent border-b-2 border-accent'
               : 'text-gray-400 hover:text-white'
           }`}
         >
@@ -205,7 +205,7 @@ export default function ContentManagementPage() {
           onClick={() => setActiveTab('sections')}
           className={`pb-3 px-1 font-medium transition-colors ${
             activeTab === 'sections'
-              ? 'text-orange-500 border-b-2 border-orange-500'
+              ? 'text-accent border-b-2 border-accent'
               : 'text-gray-400 hover:text-white'
           }`}
         >
@@ -527,7 +527,7 @@ function ContentModal({
                   type="text"
                   value={formData.name as string || ''}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-orange-500"
+                  className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-accent"
                   required
                 />
               </div>
@@ -539,7 +539,7 @@ function ContentModal({
                   type="text"
                   value={formData.slug as string || ''}
                   onChange={(e) => setFormData({ ...formData, slug: e.target.value })}
-                  className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-orange-500 font-mono"
+                  className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-accent font-mono"
                   required
                   placeholder="hero-banner"
                 />
@@ -551,7 +551,7 @@ function ContentModal({
                 <select
                   value={formData.page as string || 'home'}
                   onChange={(e) => setFormData({ ...formData, page: e.target.value })}
-                  className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-orange-500"
+                  className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-accent"
                 >
                   <option value="home">Home</option>
                   <option value="about">About</option>
@@ -567,7 +567,7 @@ function ContentModal({
                 <textarea
                   value={formData.description as string || ''}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-orange-500"
+                  className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-accent"
                   rows={3}
                 />
               </div>
@@ -584,7 +584,7 @@ function ContentModal({
                   <select
                     value={formData.sectionId as string || ''}
                     onChange={(e) => setFormData({ ...formData, sectionId: e.target.value })}
-                    className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-orange-500"
+                    className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-accent"
                     required
                   >
                     {sections.map((section) => (
@@ -603,7 +603,7 @@ function ContentModal({
                   type="text"
                   value={formData.key as string || ''}
                   onChange={(e) => setFormData({ ...formData, key: e.target.value })}
-                  className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-orange-500 font-mono"
+                  className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-accent font-mono"
                   required
                   placeholder="headline"
                   disabled={mode === 'editContent'}
@@ -616,7 +616,7 @@ function ContentModal({
                 <select
                   value={formData.type as string || 'TEXT'}
                   onChange={(e) => setFormData({ ...formData, type: e.target.value })}
-                  className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-orange-500"
+                  className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-accent"
                   disabled={mode === 'editContent'}
                 >
                   <option value="TEXT">Text</option>
@@ -636,7 +636,7 @@ function ContentModal({
                   type="text"
                   value={formData.label as string || ''}
                   onChange={(e) => setFormData({ ...formData, label: e.target.value })}
-                  className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-orange-500"
+                  className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-accent"
                   placeholder="Hero Headline"
                 />
               </div>
@@ -655,7 +655,7 @@ function ContentModal({
                         [formData.type === 'TEXT' ? 'textValue' : 'richText']: e.target.value,
                       })
                     }
-                    className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-orange-500"
+                    className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-accent"
                     rows={5}
                   />
                 </div>
@@ -671,7 +671,7 @@ function ContentModal({
                       type="url"
                       value={formData.mediaUrl as string || ''}
                       onChange={(e) => setFormData({ ...formData, mediaUrl: e.target.value })}
-                      className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-orange-500"
+                      className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-accent"
                       placeholder="https://..."
                     />
                   </div>
@@ -683,7 +683,7 @@ function ContentModal({
                       type="text"
                       value={formData.mediaAlt as string || ''}
                       onChange={(e) => setFormData({ ...formData, mediaAlt: e.target.value })}
-                      className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-orange-500"
+                      className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-accent"
                     />
                   </div>
                 </>

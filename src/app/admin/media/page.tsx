@@ -20,11 +20,14 @@ interface MediaAsset {
   createdAt: string;
 }
 
+type MediaTypeFilter = 'all' | 'photos' | 'videos';
+
 export default function MediaLibraryPage() {
   const [assets, setAssets] = useState<MediaAsset[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedFolder, setSelectedFolder] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState('');
+  const [mediaTypeFilter, setMediaTypeFilter] = useState<MediaTypeFilter>('all');
   const [showAddModal, setShowAddModal] = useState(false);
   const [selectedAsset, setSelectedAsset] = useState<MediaAsset | null>(null);
   const [total, setTotal] = useState(0);
@@ -79,6 +82,15 @@ export default function MediaLibraryPage() {
     return '📁';
   }
 
+  const filteredAssets = assets.filter((asset) => {
+    if (mediaTypeFilter === 'photos') return asset.mimeType.startsWith('image/');
+    if (mediaTypeFilter === 'videos') return asset.mimeType.startsWith('video/');
+    return true;
+  });
+
+  const photosCount = assets.filter((a) => a.mimeType.startsWith('image/')).length;
+  const videosCount = assets.filter((a) => a.mimeType.startsWith('video/')).length;
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -91,6 +103,27 @@ export default function MediaLibraryPage() {
         <Button onClick={() => setShowAddModal(true)}>+ Add Media</Button>
       </div>
 
+      {/* Media Type Tabs */}
+      <div className="flex gap-1 border-b border-gray-800">
+        {([
+          { key: 'all' as const, label: 'All Media', count: assets.length },
+          { key: 'photos' as const, label: 'Photos', count: photosCount },
+          { key: 'videos' as const, label: 'Videos', count: videosCount },
+        ]).map((tab) => (
+          <button
+            key={tab.key}
+            onClick={() => setMediaTypeFilter(tab.key)}
+            className={`px-4 py-3 text-sm font-medium transition-colors ${
+              mediaTypeFilter === tab.key
+                ? 'text-accent border-b-2 border-accent'
+                : 'text-gray-400 hover:text-white'
+            }`}
+          >
+            {tab.label} ({tab.count})
+          </button>
+        ))}
+      </div>
+
       {/* Filters */}
       <div className="flex gap-4 flex-wrap">
         <div className="flex-1 min-w-[200px]">
@@ -99,13 +132,13 @@ export default function MediaLibraryPage() {
             placeholder="Search media..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-orange-500"
+            className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-accent"
           />
         </div>
         <select
           value={selectedFolder}
           onChange={(e) => setSelectedFolder(e.target.value)}
-          className="px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-orange-500"
+          className="px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-accent"
         >
           <option value="">All Folders</option>
           {folders.map((folder) => (
@@ -118,7 +151,8 @@ export default function MediaLibraryPage() {
 
       {/* Results count */}
       <p className="text-gray-400 text-sm">
-        Showing {assets.length} of {total} assets
+        Showing {filteredAssets.length} of {total} assets
+        {mediaTypeFilter !== 'all' && ` (filtered to ${mediaTypeFilter})`}
       </p>
 
       {/* Media Grid */}
@@ -126,19 +160,23 @@ export default function MediaLibraryPage() {
         <div className="text-center py-12">
           <p className="text-gray-400">Loading...</p>
         </div>
-      ) : assets.length === 0 ? (
+      ) : filteredAssets.length === 0 ? (
         <div className="text-center py-12 bg-gray-900 rounded-lg border border-gray-800">
-          <p className="text-gray-400">No media assets found.</p>
+          <p className="text-gray-400">
+            {assets.length === 0
+              ? 'No media assets found.'
+              : `No ${mediaTypeFilter === 'photos' ? 'photos' : 'videos'} found.`}
+          </p>
           <Button onClick={() => setShowAddModal(true)} className="mt-4">
-            Add Your First Media
+            {assets.length === 0 ? 'Add Your First Media' : `Add ${mediaTypeFilter === 'photos' ? 'Photo' : 'Video'}`}
           </Button>
         </div>
       ) : (
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-          {assets.map((asset) => (
+          {filteredAssets.map((asset) => (
             <div
               key={asset.id}
-              className="bg-gray-900 border border-gray-800 rounded-lg overflow-hidden group cursor-pointer hover:border-orange-500 transition-colors"
+              className="bg-gray-900 border border-gray-800 rounded-lg overflow-hidden group cursor-pointer hover:border-accent transition-colors"
               onClick={() => setSelectedAsset(asset)}
             >
               {/* Preview */}
@@ -339,7 +377,7 @@ function AddMediaModal({
               onClick={() => { setUploadMode(tab.key); setMuxUploadUrl(null); setUploadProgress(null); }}
               className={`flex-1 py-3 text-sm font-medium transition-colors ${
                 uploadMode === tab.key
-                  ? 'text-orange-500 border-b-2 border-orange-500'
+                  ? 'text-accent border-b-2 border-accent'
                   : 'text-gray-400 hover:text-white'
               }`}
             >
@@ -358,7 +396,7 @@ function AddMediaModal({
                 type="url"
                 value={formData.url}
                 onChange={(e) => setFormData({ ...formData, url: e.target.value })}
-                className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-orange-500"
+                className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-accent"
                 placeholder={uploadMode === 'mux-url' ? 'https://example.com/video.mp4' : 'https://example.com/image.jpg'}
                 required
               />
@@ -383,7 +421,7 @@ function AddMediaModal({
               <select
                 value={formData.mimeType}
                 onChange={(e) => setFormData({ ...formData, mimeType: e.target.value })}
-                className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-orange-500"
+                className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-accent"
               >
                 <option value="image/jpeg">Image (JPEG)</option>
                 <option value="image/png">Image (PNG)</option>
@@ -402,7 +440,7 @@ function AddMediaModal({
             <select
               value={formData.folder}
               onChange={(e) => setFormData({ ...formData, folder: e.target.value })}
-              className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-orange-500"
+              className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-accent"
             >
               {folders.map((folder) => (
                 <option key={folder} value={folder}>
@@ -420,7 +458,7 @@ function AddMediaModal({
               type="text"
               value={formData.alt}
               onChange={(e) => setFormData({ ...formData, alt: e.target.value })}
-              className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-orange-500"
+              className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-accent"
               placeholder="Description of the media"
             />
           </div>
@@ -432,7 +470,7 @@ function AddMediaModal({
             <textarea
               value={formData.caption}
               onChange={(e) => setFormData({ ...formData, caption: e.target.value })}
-              className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-orange-500"
+              className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-accent"
               rows={2}
             />
           </div>
@@ -468,8 +506,14 @@ function AssetDetailModal({
     alt: asset.alt || '',
     caption: asset.caption || '',
     folder: asset.folder,
+    url: asset.url,
   });
   const [saving, setSaving] = useState(false);
+  const [showReplaceUrl, setShowReplaceUrl] = useState(false);
+
+  const isImage = asset.mimeType.startsWith('image/');
+  const isVideo = asset.mimeType.startsWith('video/');
+  const mediaLabel = isImage ? 'Photo' : isVideo ? 'Video' : 'File';
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -493,7 +537,10 @@ function AssetDetailModal({
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
       <div className="bg-gray-900 border border-gray-800 rounded-lg w-full max-w-2xl max-h-[90vh] overflow-y-auto">
         <div className="p-6 border-b border-gray-800 flex items-center justify-between">
-          <h2 className="text-xl font-bold text-white">Media Details</h2>
+          <div>
+            <h2 className="text-xl font-bold text-white">{mediaLabel} Details</h2>
+            <p className="text-xs text-gray-400 mt-1">Edit this {mediaLabel.toLowerCase()} independently</p>
+          </div>
           <button onClick={onClose} className="text-gray-400 hover:text-white">
             ✕
           </button>
@@ -502,39 +549,58 @@ function AssetDetailModal({
         <div className="p-6 grid grid-cols-2 gap-6">
           {/* Preview */}
           <div>
-            {asset.mimeType.startsWith('image/') ? (
+            {isImage ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img
-                src={asset.url}
-                alt={asset.alt || asset.filename}
+                src={formData.url}
+                alt={formData.alt || asset.filename}
                 className="w-full rounded-lg"
               />
-            ) : asset.mimeType.startsWith('video/') ? (
-              <video src={asset.url} controls className="w-full rounded-lg" />
+            ) : isVideo ? (
+              <video src={formData.url} controls className="w-full rounded-lg" />
             ) : (
               <div className="aspect-square bg-gray-800 rounded-lg flex items-center justify-center text-6xl">
                 📁
               </div>
             )}
 
-            {/* URL Copy */}
-            <div className="mt-4 p-3 bg-gray-800 rounded-lg">
-              <p className="text-xs text-gray-400 mb-1">URL</p>
-              <div className="flex items-center gap-2">
-                <input
-                  type="text"
-                  value={asset.url}
-                  readOnly
-                  className="flex-1 bg-transparent text-white text-sm truncate"
-                />
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => navigator.clipboard.writeText(asset.url)}
+            {/* URL Copy / Replace */}
+            <div className="mt-4 p-3 bg-gray-800 rounded-lg space-y-2">
+              <div className="flex items-center justify-between">
+                <p className="text-xs text-gray-400">URL</p>
+                <button
+                  type="button"
+                  onClick={() => setShowReplaceUrl(!showReplaceUrl)}
+                  className="text-xs text-accent hover:text-accent-bright transition-colors"
                 >
-                  Copy
-                </Button>
+                  {showReplaceUrl ? 'Cancel' : `Replace ${mediaLabel}`}
+                </button>
               </div>
+              {showReplaceUrl ? (
+                <input
+                  type="url"
+                  value={formData.url}
+                  onChange={(e) => setFormData({ ...formData, url: e.target.value })}
+                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white text-sm focus:outline-none focus:border-accent"
+                  placeholder={`Enter new ${mediaLabel.toLowerCase()} URL...`}
+                />
+              ) : (
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    value={formData.url}
+                    readOnly
+                    className="flex-1 bg-transparent text-white text-sm truncate"
+                  />
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => navigator.clipboard.writeText(formData.url)}
+                  >
+                    Copy
+                  </Button>
+                </div>
+              )}
             </div>
           </div>
 
@@ -563,7 +629,7 @@ function AssetDetailModal({
               <select
                 value={formData.folder}
                 onChange={(e) => setFormData({ ...formData, folder: e.target.value })}
-                className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-orange-500"
+                className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-accent"
               >
                 {folders.map((folder) => (
                   <option key={folder} value={folder}>
@@ -581,7 +647,7 @@ function AssetDetailModal({
                 type="text"
                 value={formData.alt}
                 onChange={(e) => setFormData({ ...formData, alt: e.target.value })}
-                className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-orange-500"
+                className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-accent"
               />
             </div>
 
@@ -592,7 +658,7 @@ function AssetDetailModal({
               <textarea
                 value={formData.caption}
                 onChange={(e) => setFormData({ ...formData, caption: e.target.value })}
-                className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-orange-500"
+                className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-accent"
                 rows={2}
               />
             </div>

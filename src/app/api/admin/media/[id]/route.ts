@@ -41,7 +41,7 @@ export async function PATCH(
 
     const { id } = await params;
     const body = await request.json();
-    const { alt, caption, tags, folder, isPublic } = body;
+    const { alt, caption, tags, folder, isPublic, url } = body;
 
     const media = await ContentService.updateMedia(id, {
       alt,
@@ -49,6 +49,7 @@ export async function PATCH(
       tags,
       folder,
       isPublic,
+      url,
     });
 
     return NextResponse.json({ media });

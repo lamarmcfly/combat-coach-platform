@@ -185,7 +185,7 @@ export default function SettingsPage() {
               onClick={() => setActiveCategory(cat.key)}
               className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left transition-colors ${
                 activeCategory === cat.key
-                  ? 'bg-orange-600 text-white'
+                  ? 'bg-accent text-black'
                   : 'text-gray-400 hover:text-white hover:bg-gray-800'
               }`}
             >
@@ -282,7 +282,7 @@ function SettingField({
           <button
             onClick={() => handleChange(localValue === 'true' ? 'false' : 'true')}
             className={`relative w-12 h-6 rounded-full transition-colors ${
-              localValue === 'true' ? 'bg-orange-600' : 'bg-gray-700'
+              localValue === 'true' ? 'bg-accent' : 'bg-gray-700'
             }`}
           >
             <span
@@ -300,14 +300,14 @@ function SettingField({
           type="number"
           value={localValue}
           onChange={(e) => handleChange(e.target.value)}
-          className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-orange-500"
+          className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-accent"
         />
       ) : (
         <input
           type="text"
           value={localValue}
           onChange={(e) => handleChange(e.target.value)}
-          className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-orange-500"
+          className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-accent"
         />
       )}
     </div>

@@ -37,7 +37,7 @@ export const featuredCourses: Course[] = [
     priceCents: 14900,
     status: "published",
     trailerVideoUrl: "https://storage.googleapis.com/coach-demo/lena-blueprint-trailer.mp4",
-    coverImageUrl: "/images/hero-fight.jpg",
+    coverImageUrl: "/images/athlete-boxing.jpg",
     modules: [
       {
         label: "Week 1 · Foundations",
