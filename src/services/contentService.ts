@@ -403,6 +403,7 @@ export class ContentService {
       tags: string[];
       folder: string;
       isPublic: boolean;
+      url: string;
     }>
   ) {
     return prisma.mediaAsset.update({

@@ -32,9 +32,22 @@ type LiveSessionWithRelations = Prisma.LiveSessionGetPayload<{
   };
 }>;
 
-const COACH_PLACEHOLDER_AVATAR = "/images/coach-portrait.jpg";
+const COACH_PLACEHOLDER_AVATARS = [
+  "/images/coach-portrait.jpg",
+  "/images/coaching-mitts.jpg",
+  "/images/victory-celebration.jpg",
+  "/images/team-gym.jpg",
+];
 
-const COURSE_PLACEHOLDER_IMAGE = "/images/hero-fight.jpg";
+const COURSE_PLACEHOLDER_IMAGES = [
+  "/images/athlete-boxing.jpg",
+  "/images/athlete-grappling.jpg",
+  "/images/athlete-heavy-bag.jpg",
+  "/images/fight-kick.jpg",
+  "/images/fight-exchange.jpg",
+  "/images/training-partners.jpg",
+  "/images/coaching-mitts.jpg",
+];
 
 export async function getPublishedCourses(): Promise<Course[]> {
   try {
@@ -205,7 +218,7 @@ function mapCourseRecord(record: CourseWithRelations): Course {
     priceCents: record.priceCents ?? 0,
     status: record.status === "PUBLISHED" ? "published" : "draft",
     trailerVideoUrl: record.trailerVideoUrl ?? record.coverImageUrl ?? "",
-    coverImageUrl: record.coverImageUrl ?? COURSE_PLACEHOLDER_IMAGE,
+    coverImageUrl: record.coverImageUrl ?? COURSE_PLACEHOLDER_IMAGES[record.id.length % COURSE_PLACEHOLDER_IMAGES.length],
     modules: Array.from(lessonsByModule.entries()).map(([label, lessons]) => ({ label, lessons })),
     stats: {
       durationHours: Math.round((statsDurationMinutes / 60) * 10) / 10,
@@ -229,7 +242,7 @@ function mapCoachProfile(coach: CoachWithUser): CoachSummary {
     location: coach.location ?? coach.gymLocation ?? "Remote",
     bio: coach.shortBio ?? "Combat coach",
     introVideoUrl: coach.highlightVideoUrl ?? coach.avatarUrl ?? "",
-    avatarUrl: coach.avatarUrl ?? COACH_PLACEHOLDER_AVATAR,
+    avatarUrl: coach.avatarUrl ?? COACH_PLACEHOLDER_AVATARS[coach.id.length % COACH_PLACEHOLDER_AVATARS.length],
     yearsCoaching: coach.yearsCoaching ?? 0,
     fightersCoached,
     titles,

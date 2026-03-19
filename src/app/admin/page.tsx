@@ -135,10 +135,10 @@ export default function AdminDashboard() {
             <Link
               key={action.href}
               href={action.href}
-              className="p-6 bg-gray-900 border border-gray-800 rounded-lg hover:border-orange-500 transition-colors group"
+              className="p-6 bg-gray-900 border border-gray-800 rounded-lg hover:border-accent transition-colors group"
             >
               <div className="text-3xl mb-3">{action.icon}</div>
-              <h3 className="text-lg font-medium text-white group-hover:text-orange-500 transition-colors">
+              <h3 className="text-lg font-medium text-white group-hover:text-accent transition-colors">
                 {action.title}
               </h3>
               <p className="text-sm text-gray-400 mt-1">{action.description}</p>
