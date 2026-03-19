@@ -100,12 +100,11 @@ export const config = {
   matcher: [
     /*
      * Match all request paths except:
-     * - _next/static (static files)
-     * - _next/image (image optimization)
-     * - favicon.ico, sitemap.xml, robots.txt
-     * - public folder assets
+     * - _next (static files, image optimization)
+     * - favicon.ico, sitemap.xml, robots.txt, manifest.webmanifest
+     * - public folder assets (images, icons, video, sw.js)
      * - API routes (handled by their own auth checks)
      */
-    '/((?!_next/static|_next/image|favicon\\.ico|sitemap\\.xml|robots\\.txt|icons/|sw\\.js|api/).*)',
+    '/((?!_next|favicon\\.ico|sitemap\\.xml|robots\\.txt|manifest\\.webmanifest|icons/|images/|video/|sw\\.js|api/).*)',
   ],
 };
