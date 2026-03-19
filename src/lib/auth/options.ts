@@ -47,7 +47,9 @@ export const authOptions = {
         const matches = await compare(credentials.password, user.passwordHash);
         if (!matches) return null;
 
-        if (!user.emailVerified) {
+        // Require email verification only when email service is configured
+        const emailServiceConfigured = !!process.env.SENDGRID_API_KEY;
+        if (emailServiceConfigured && !user.emailVerified) {
           throw new Error("Please verify your email before signing in.");
         }
 

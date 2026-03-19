@@ -47,6 +47,11 @@ export async function POST(request: NextRequest) {
   }
 
   const passwordHash = await bcrypt.hash(password, 10);
+
+  // Auto-verify email when email service is not configured (dev/demo mode)
+  const emailServiceConfigured = !!process.env.SENDGRID_API_KEY;
+  const autoVerify = !emailServiceConfigured;
+
   const user = await db.user.create({
     data: {
       email,
@@ -54,36 +59,45 @@ export async function POST(request: NextRequest) {
       firstName,
       lastName,
       role: Role.ATHLETE,
+      emailVerified: autoVerify ? new Date() : null,
     },
   });
 
-  // Generate email verification token (32 random hex bytes)
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://combatcoach.app';
-  const verificationToken = randomBytes(32).toString("hex");
-  const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+  if (!autoVerify) {
+    // Generate email verification token (32 random hex bytes)
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://combatcoach.app';
+    const verificationToken = randomBytes(32).toString("hex");
+    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
 
-  await db.emailVerificationToken.create({
-    data: {
-      userId: user.id,
-      token: verificationToken,
-      expiresAt,
-    },
-  });
-
-  // Send verification email
-  const verifyUrl = `${baseUrl}/auth/verify-email?token=${verificationToken}`;
-  try {
-    await sendTemplatedEmail(email, 'email_verification', {
-      firstName: firstName || '',
-      verifyUrl,
+    await db.emailVerificationToken.create({
+      data: {
+        userId: user.id,
+        token: verificationToken,
+        expiresAt,
+      },
     });
-  } catch (emailError) {
-    console.error('Failed to send verification email:', emailError);
+
+    // Send verification email
+    const verifyUrl = `${baseUrl}/auth/verify-email?token=${verificationToken}`;
+    try {
+      await sendTemplatedEmail(email, 'email_verification', {
+        firstName: firstName || '',
+        verifyUrl,
+      });
+    } catch (emailError) {
+      console.error('Failed to send verification email:', emailError);
+    }
+
+    return NextResponse.json({
+      success: true,
+      userId: user.id,
+      message: "Account created. Please check your email to verify your address.",
+    });
   }
 
   return NextResponse.json({
     success: true,
     userId: user.id,
-    message: "Account created. Please check your email to verify your address.",
+    message: "Account created. You can now sign in.",
   });
 }
