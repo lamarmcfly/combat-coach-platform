@@ -32,11 +32,9 @@ type LiveSessionWithRelations = Prisma.LiveSessionGetPayload<{
   };
 }>;
 
-const COACH_PLACEHOLDER_AVATAR =
-  "https://images.unsplash.com/photo-1521412644187-c49fa049e84d?auto=format&fit=crop&w=400&q=60";
+const COACH_PLACEHOLDER_AVATAR = "/images/coach-portrait.jpg";
 
-const COURSE_PLACEHOLDER_IMAGE =
-  "https://images.unsplash.com/photo-1509223197845-458d87318791?auto=format&fit=crop&w=1200&q=80";
+const COURSE_PLACEHOLDER_IMAGE = "/images/hero-fight.jpg";
 
 export async function getPublishedCourses(): Promise<Course[]> {
   try {

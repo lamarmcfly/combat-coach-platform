@@ -17,7 +17,7 @@ export const sampleCoach = {
   location: "Brooklyn, NY",
   bio: "Former WBC Muay Thai champ known for ruthless clinch systems and modern fight IQ.",
   introVideoUrl: "https://storage.googleapis.com/coach-demo/lena-stone-intro.mp4",
-  avatarUrl: "https://images.unsplash.com/photo-1521412644187-c49fa049e84d?auto=format&fit=crop&w=400&q=60",
+  avatarUrl: "/images/coach-portrait.jpg",
   yearsCoaching: 12,
   fightersCoached: 38,
   titles: 6,
@@ -37,7 +37,7 @@ export const featuredCourses: Course[] = [
     priceCents: 14900,
     status: "published",
     trailerVideoUrl: "https://storage.googleapis.com/coach-demo/lena-blueprint-trailer.mp4",
-    coverImageUrl: "https://images.unsplash.com/photo-1521412644187-c49fa049e84d?auto=format&fit=crop&w=800&q=80",
+    coverImageUrl: "/images/hero-fight.jpg",
     modules: [
       {
         label: "Week 1 · Foundations",
