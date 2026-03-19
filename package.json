@@ -16,7 +16,8 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "db:seed": "tsx db/seed.ts",
-    "db:create-admin": "tsx scripts/create-admin.ts"
+    "db:create-admin": "tsx scripts/create-admin.ts",
+    "db:fix-images": "tsx scripts/fix-image-urls.ts"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.11.1",

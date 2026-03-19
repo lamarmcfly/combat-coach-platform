@@ -28,7 +28,7 @@ export function HomeFeed({ courses, liveSessions, coaches, ownedCourseIds, booke
     <PageContainer>
       <div className="space-y-10">
         <HeroVideoBanner
-          videoRef="https://storage.googleapis.com/coach-demo/hero.mp4"
+          posterImage="/images/hero-fight.jpg"
           title="Train with proven combat coaches"
           subtitle="Structured Muay Thai, boxing, MMA, wrestling, and more. Programs that respect the grind, not algorithms."
           primaryCta={{ label: "Start training", href: "/courses" }}
