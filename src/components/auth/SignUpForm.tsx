@@ -53,12 +53,14 @@ export function SignUpForm() {
         callbackUrl: "/my/training",
       });
       if (signInResult?.error) {
-        setError(signInResult.error);
+        setError(signInResult.error === "CredentialsSignin"
+          ? "Account created but sign-in failed. Please try signing in manually."
+          : signInResult.error);
         setLoading(false);
         return;
       }
-      router.push("/my/training");
-      router.refresh();
+      // Force full page navigation to pick up session cookie
+      window.location.href = "/my/training";
     } catch (err) {
       console.error(err);
       setError("Unexpected error. Please try again.");

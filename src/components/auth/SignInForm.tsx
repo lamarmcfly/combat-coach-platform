@@ -23,11 +23,19 @@ function SignInFormInner() {
     setLoading(false);
 
     if (result?.error) {
-      setError("Invalid credentials. Please try again.");
+      setError(result.error === "CredentialsSignin"
+        ? "Invalid email or password. Please try again."
+        : result.error);
       return;
     }
-    router.push(callbackUrl);
-    router.refresh();
+
+    if (result?.ok) {
+      // Force a full page navigation to ensure session cookie is picked up
+      window.location.href = callbackUrl;
+      return;
+    }
+
+    setError("Sign in failed. Please try again.");
   };
 
   return (

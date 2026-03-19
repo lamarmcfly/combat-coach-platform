@@ -1,12 +1,19 @@
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import type { AdapterUser } from "next-auth/adapters";
+import type { Adapter } from "next-auth/adapters";
 import Credentials from "next-auth/providers/credentials";
 import Google from "next-auth/providers/google";
 import { compare } from "bcryptjs";
 import { db } from "@/db/client";
 
+// Use PrismaAdapter only for OAuth providers (Google etc.).
+// For Credentials provider, the adapter's createUser/linkAccount
+// methods conflict with JWT strategy — so we strip them for credentials flow.
+const hasOAuthProviders = !!(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET);
+const adapter: Adapter | undefined = hasOAuthProviders ? PrismaAdapter(db) as Adapter : undefined;
+
 export const authOptions = {
-  adapter: PrismaAdapter(db),
+  ...(adapter ? { adapter } : {}),
   session: {
     strategy: "jwt" as const,
   },
