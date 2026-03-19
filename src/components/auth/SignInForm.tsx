@@ -1,41 +1,43 @@
 'use client';
 
 import { FormEvent, useState, Suspense } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { signIn } from "next-auth/react";
 import Link from "next/link";
 
 function SignInFormInner() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const router = useRouter();
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get("callbackUrl") ?? "/my/training";
+  const authError = searchParams.get("error");
+
+  // Show error from NextAuth redirect (e.g., after failed credentials)
+  const displayError = error ?? (authError === "CredentialsSignin" ? "Invalid email or password." : authError ? `Sign in error: ${authError}` : null);
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setError(null);
     setLoading(true);
+
     const formData = new FormData(event.currentTarget);
     const email = formData.get("email") as string;
     const password = formData.get("password") as string;
-    const result = await signIn("credentials", { email, password, redirect: false, callbackUrl });
-    setLoading(false);
 
-    if (result?.error) {
-      setError(result.error === "CredentialsSignin"
-        ? "Invalid email or password. Please try again."
-        : result.error);
-      return;
+    try {
+      // Let NextAuth handle the redirect — this is the most reliable approach
+      await signIn("credentials", {
+        email,
+        password,
+        callbackUrl,
+        redirect: true,
+      });
+      // If redirect: true works, we never reach here
+    } catch (err) {
+      // signIn with redirect: true will throw on error
+      setError("Invalid email or password. Please try again.");
+      setLoading(false);
     }
-
-    if (result?.ok) {
-      // Force a full page navigation to ensure session cookie is picked up
-      window.location.href = callbackUrl;
-      return;
-    }
-
-    setError("Sign in failed. Please try again.");
   };
 
   return (
@@ -58,7 +60,7 @@ function SignInFormInner() {
           className="rounded-md border border-[#2a2b30] bg-[#0f0f12] px-3 py-2 text-copy focus:border-accent focus:outline-none"
         />
       </label>
-      {error ? <p className="text-sm text-accent">{error}</p> : null}
+      {displayError ? <p className="text-sm text-accent">{displayError}</p> : null}
       <button
         type="submit"
         disabled={loading}
